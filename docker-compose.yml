@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ebt-api
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=production
+      - LOG_LEVEL=INFO
+      - DATABASE_PATH=/app/data/db/ebt_classification.db
+      - CHROMADB_PATH=/app/data/chromadb
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - USDA_API_KEY=${USDA_API_KEY:-}
+    volumes:
+      - ebt-data:/app/data/db
+      - chromadb-data:/app/data/chromadb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - ebt-network
+
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    container_name: ebt-ui
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ebt-network
+
+volumes:
+  ebt-data:
+    driver: local
+  chromadb-data:
+    driver: local
+
+networks:
+  ebt-network:
+    driver: bridge

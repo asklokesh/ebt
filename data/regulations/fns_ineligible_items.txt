@@ -1,0 +1,122 @@
+FNS SNAP Ineligible Items Guide
+Food and Nutrition Service, USDA
+
+ITEMS NOT ELIGIBLE FOR SNAP PURCHASE
+
+SNAP benefits CANNOT be used to buy:
+
+1. ALCOHOLIC BEVERAGES
+   - Beer (including non-alcoholic beer with any alcohol content)
+   - Wine (including cooking wine if labeled as alcoholic)
+   - Liquor and spirits
+   - Malt beverages
+   - Hard seltzers
+   - Wine coolers
+   - Any beverage containing alcohol
+
+   Note: Products labeled as "non-alcoholic" may still contain trace amounts of alcohol (up to 0.5% ABV) and their eligibility may vary by state interpretation.
+
+2. TOBACCO PRODUCTS
+   - Cigarettes
+   - Cigars and cigarillos
+   - Pipe tobacco
+   - Chewing tobacco and snuff
+   - E-cigarettes and vaping devices
+   - Vape juice and pods (with or without nicotine)
+   - Nicotine patches, gums, and lozenges
+
+3. VITAMINS, MEDICINES, AND SUPPLEMENTS
+   Any product with a SUPPLEMENT FACTS label is NOT eligible, including:
+   - Multivitamins
+   - Individual vitamins (Vitamin C, D, B12, etc.)
+   - Mineral supplements (iron, calcium, zinc)
+   - Herbal supplements
+   - Protein powders with Supplement Facts label
+   - Fish oil and omega-3 supplements
+   - Probiotics sold as supplements
+   - Energy supplements
+   - Weight loss supplements
+   - Sports nutrition supplements
+
+   IMPORTANT DISTINCTION:
+   - Nutrition Facts label = FOOD (potentially eligible)
+   - Supplement Facts label = SUPPLEMENT (NOT eligible)
+
+4. HOT FOODS AND HOT FOOD PRODUCTS
+   Foods that are hot at the point of sale are NOT eligible:
+   - Rotisserie chicken
+   - Hot pizza
+   - Hot dogs from a warmer
+   - Hot soup or chili
+   - Hot coffee or tea (prepared)
+   - Hot breakfast items
+   - Foods from steam tables
+   - Heated prepared meals
+
+   Exception: Food that is sold cold/room temperature but will be heated by the consumer at home IS eligible.
+
+5. FOODS PREPARED FOR IMMEDIATE CONSUMPTION
+   - Restaurant meals
+   - Fast food
+   - Food court purchases
+   - Cafeteria meals
+   - Any food intended to be eaten on premises
+
+6. NON-FOOD ITEMS
+   - Pet foods (dog food, cat food, fish food, etc.)
+   - Cleaning supplies
+   - Paper products (toilet paper, paper towels)
+   - Personal hygiene items (soap, shampoo, toothpaste)
+   - Cosmetics and beauty products
+   - Household supplies
+   - Diapers
+   - Medicines and pharmaceuticals
+   - First aid supplies
+
+7. LIVE ANIMALS
+   The following are NOT eligible:
+   - Live chickens
+   - Live fish (while still in water/alive)
+   - Live cattle, pigs, or other livestock
+   - Live rabbits
+   - Any animal that is alive at point of sale
+
+   EXCEPTIONS (These ARE eligible):
+   - Shellfish removed from tank (clams, mussels, oysters)
+   - Fish removed from water
+   - Animals slaughtered prior to customer pick-up
+
+8. CBD AND CANNABIS PRODUCTS
+   - CBD-infused foods and beverages
+   - CBD oils and tinctures
+   - Hemp-derived CBD products
+   - Marijuana edibles
+   - THC-containing products
+   - Any cannabis-derived food product
+
+   Note: Even in states where cannabis is legal, these products are NOT SNAP-eligible under federal law.
+
+9. PREPARED FOOD WITH HOT SALES THRESHOLD
+   Establishments where more than 50% of sales are hot prepared food are classified as restaurants and their items are generally ineligible.
+
+10. GIFT BASKETS AND NON-FOOD COMBINATIONS
+    - Gift baskets containing non-food items
+    - Products bundled with non-food items where the non-food portion has significant value
+
+SPECIAL NOTES
+
+Energy Drinks:
+- Energy drinks with a NUTRITION FACTS label ARE eligible
+- Energy drinks with a SUPPLEMENT FACTS label are NOT eligible
+- Check the label carefully - some energy drinks are classified as supplements
+
+Protein Bars and Shakes:
+- Products with NUTRITION FACTS labels ARE eligible
+- Products with SUPPLEMENT FACTS labels are NOT eligible
+- Many protein products fall into the supplement category
+
+Meal Replacement Drinks:
+- Ensure, Boost, and similar products with NUTRITION FACTS labels ARE eligible
+- Similar products marketed as supplements with SUPPLEMENT FACTS labels are NOT eligible
+
+Source: https://www.fns.usda.gov/snap/eligible-food-items

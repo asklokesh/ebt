@@ -1,0 +1,134 @@
+{
+  "eligible_products": [
+    {
+      "product_id": "E001",
+      "product_name": "Organic Whole Milk",
+      "category": "Dairy",
+      "nutrition_label_type": "nutrition_facts",
+      "expected_category": "ELIGIBLE_STAPLE_FOOD",
+      "expected_eligible": true
+    },
+    {
+      "product_id": "E002",
+      "product_name": "Cheerios Cereal",
+      "category": "Cereals",
+      "nutrition_label_type": "nutrition_facts",
+      "expected_category": "ELIGIBLE_STAPLE_FOOD",
+      "expected_eligible": true
+    },
+    {
+      "product_id": "E003",
+      "product_name": "Coca-Cola Classic",
+      "category": "Beverages",
+      "nutrition_label_type": "nutrition_facts",
+      "expected_category": "ELIGIBLE_BEVERAGE",
+      "expected_eligible": true
+    },
+    {
+      "product_id": "E004",
+      "product_name": "Snickers Bar",
+      "category": "Snacks",
+      "nutrition_label_type": "nutrition_facts",
+      "expected_category": "ELIGIBLE_SNACK_FOOD",
+      "expected_eligible": true
+    },
+    {
+      "product_id": "E005",
+      "product_name": "Vegetable Seeds Assortment",
+      "category": "Seeds",
+      "expected_category": "ELIGIBLE_SEEDS_PLANTS",
+      "expected_eligible": true
+    },
+    {
+      "product_id": "E006",
+      "product_name": "Fresh Salmon Fillet",
+      "category": "Seafood",
+      "nutrition_label_type": "nutrition_facts",
+      "expected_category": "ELIGIBLE_STAPLE_FOOD",
+      "expected_eligible": true
+    },
+    {
+      "product_id": "E007",
+      "product_name": "Gerber Baby Cereal",
+      "category": "Baby Food",
+      "nutrition_label_type": "nutrition_facts",
+      "expected_category": "ELIGIBLE_BABY_FOOD",
+      "expected_eligible": true
+    },
+    {
+      "product_id": "E008",
+      "product_name": "Monster Energy Drink",
+      "category": "Beverages",
+      "nutrition_label_type": "nutrition_facts",
+      "alcohol_content": 0.0,
+      "expected_category": "ELIGIBLE_BEVERAGE",
+      "expected_eligible": true
+    }
+  ],
+  "ineligible_products": [
+    {
+      "product_id": "I001",
+      "product_name": "Budweiser 6-Pack",
+      "category": "Beverages",
+      "alcohol_content": 0.05,
+      "expected_category": "INELIGIBLE_ALCOHOL",
+      "expected_eligible": false
+    },
+    {
+      "product_id": "I002",
+      "product_name": "Marlboro Cigarettes",
+      "category": "Tobacco",
+      "contains_tobacco": true,
+      "expected_category": "INELIGIBLE_TOBACCO",
+      "expected_eligible": false
+    },
+    {
+      "product_id": "I003",
+      "product_name": "Hot Pizza Slice",
+      "category": "Prepared Foods",
+      "is_hot_at_sale": true,
+      "expected_category": "INELIGIBLE_HOT_FOOD",
+      "expected_eligible": false
+    },
+    {
+      "product_id": "I004",
+      "product_name": "One A Day Multivitamin",
+      "category": "Health",
+      "nutrition_label_type": "supplement_facts",
+      "expected_category": "INELIGIBLE_SUPPLEMENT",
+      "expected_eligible": false
+    },
+    {
+      "product_id": "I005",
+      "product_name": "CBD Gummy Bears",
+      "category": "Health",
+      "contains_cbd_cannabis": true,
+      "expected_category": "INELIGIBLE_CBD_CANNABIS",
+      "expected_eligible": false
+    },
+    {
+      "product_id": "I006",
+      "product_name": "Live Chicken",
+      "category": "Poultry",
+      "is_live_animal": true,
+      "expected_category": "INELIGIBLE_LIVE_ANIMAL",
+      "expected_eligible": false
+    },
+    {
+      "product_id": "I007",
+      "product_name": "Restaurant Meal",
+      "category": "Prepared Foods",
+      "is_for_onsite_consumption": true,
+      "expected_category": "INELIGIBLE_ONSITE_CONSUMPTION",
+      "expected_eligible": false
+    },
+    {
+      "product_id": "I008",
+      "product_name": "Wine Cooler",
+      "category": "Beverages",
+      "alcohol_content": 0.06,
+      "expected_category": "INELIGIBLE_ALCOHOL",
+      "expected_eligible": false
+    }
+  ]
+}

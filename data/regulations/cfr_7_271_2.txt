@@ -1,0 +1,71 @@
+7 CFR 271.2 - SNAP Definitions
+Code of Federal Regulations, Title 7, Section 271.2
+
+ELIGIBLE FOOD DEFINITION
+
+"Eligible food" means:
+(1) Any food or food product for home consumption except alcoholic beverages, tobacco, and hot foods or hot food products ready for immediate consumption other than those authorized pursuant to 7 CFR 246.10.
+
+(2) Seeds and plants for use in gardens to produce food for the personal consumption of the eligible household.
+
+(3) In the case of those persons who are sixty years of age or over or who receive supplemental security income benefits or disability or blindness payments under title I, II, X, XIV, or XVI of the Social Security Act, and their spouses, meals prepared by and served in senior citizens' centers, apartment buildings occupied primarily by such persons, public or private nonprofit establishments (eating or otherwise) that feed such persons, private establishments that contract with the appropriate agency of the State to offer meals for such persons at concessional prices, and meals prepared for and delivered to such persons (and their spouses) by a public or private nonprofit organization or by a private establishment that contracts with the appropriate agency of the State to perform such services at concessional prices.
+
+EXCLUSIONS FROM ELIGIBLE FOOD
+
+The following items are NOT eligible for purchase with SNAP benefits:
+
+1. ALCOHOLIC BEVERAGES
+   - Beer, wine, liquor, and any beverage containing alcohol
+   - This includes dealcoholized wines and non-alcoholic beers that may contain trace amounts of alcohol
+
+2. TOBACCO PRODUCTS
+   - Cigarettes, cigars, chewing tobacco
+   - E-cigarettes, vaping products, and any nicotine-containing products
+
+3. HOT FOODS
+   - Foods that are hot at the point of sale
+   - Foods heated after sale for immediate consumption
+   - Rotisserie chickens, hot pizza, hot coffee, hot soup
+   - Exception: Foods that are cooled before sale
+
+4. FOODS FOR ON-PREMISES CONSUMPTION
+   - Restaurant meals
+   - Food court items purchased for eating at the establishment
+   - Exception: Authorized meal programs for elderly and disabled
+
+ELIGIBLE FOOD ITEMS
+
+The following categories are generally eligible for SNAP purchase:
+
+1. STAPLE FOODS
+   - Meat, poultry, and fish (fresh, frozen, or canned)
+   - Bread, cereals, pasta, rice, and other grain products
+   - Fruits and vegetables (fresh, frozen, canned, or dried)
+   - Dairy products (milk, cheese, yogurt, butter)
+
+2. ACCESSORY FOODS
+   - Snack foods, candy, cookies, crackers, ice cream
+   - Soft drinks, energy drinks with Nutrition Facts labels
+   - Condiments, spices, baking supplies
+
+3. SEEDS AND PLANTS
+   - Vegetable seeds and fruit-producing plants
+   - Must be for food production for household consumption
+
+4. SPECIAL CATEGORIES
+   - Baby food and infant formula
+   - Bottled water and ice
+
+KEY DISTINCTIONS
+
+Nutrition Facts vs. Supplement Facts Labels:
+- Products with NUTRITION FACTS labels are considered food items and MAY be eligible
+- Products with SUPPLEMENT FACTS labels are considered dietary supplements and are NOT eligible
+- The type of label determines eligibility, not the product's marketing or placement
+
+Temperature at Point of Sale:
+- Cold or room temperature foods are generally eligible
+- Hot foods ready for immediate consumption are NOT eligible
+- Foods that will be heated by the consumer at home ARE eligible
+
+Source: https://www.ecfr.gov/current/title-7/section-271.2

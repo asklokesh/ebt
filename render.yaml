@@ -1,0 +1,48 @@
+# Render Blueprint for EBT Eligibility Classification System
+# https://render.com/docs/blueprint-spec
+
+services:
+  # FastAPI Backend
+  - type: web
+    name: ebt-api
+    env: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: ENV
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: PYTHONPATH
+        value: /opt/render/project/src
+      - key: DATABASE_PATH
+        value: /opt/render/project/data/db/ebt_classification.db
+      - key: CHROMADB_PATH
+        value: /opt/render/project/data/chromadb
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: USDA_API_KEY
+        sync: false
+    disk:
+      name: ebt-data
+      mountPath: /opt/render/project/data
+      sizeGB: 1
+
+  # Streamlit Frontend
+  - type: web
+    name: ebt-ui
+    env: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run ui/app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+    healthCheckPath: /_stcore/health
+    envVars:
+      - key: API_URL
+        fromService:
+          name: ebt-api
+          type: web
+          property: host
+          envVarKey: API_URL
+        value: https://ebt-api.onrender.com

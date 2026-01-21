@@ -1,0 +1,210 @@
+{
+  "rule_validator_tests": {
+    "alcohol_ineligible": {
+      "input": {
+        "product_id": "TEST-ALC-001",
+        "product_name": "Budweiser Beer",
+        "alcohol_content": 0.05
+      },
+      "expected": {
+        "is_deterministic": true,
+        "is_eligible": false,
+        "category": "INELIGIBLE_ALCOHOL"
+      }
+    },
+    "tobacco_ineligible": {
+      "input": {
+        "product_id": "TEST-TOB-001",
+        "product_name": "Marlboro Cigarettes",
+        "contains_tobacco": true
+      },
+      "expected": {
+        "is_deterministic": true,
+        "is_eligible": false,
+        "category": "INELIGIBLE_TOBACCO"
+      }
+    },
+    "hot_food_ineligible": {
+      "input": {
+        "product_id": "TEST-HOT-001",
+        "product_name": "Hot Pizza Slice",
+        "is_hot_at_sale": true
+      },
+      "expected": {
+        "is_deterministic": true,
+        "is_eligible": false,
+        "category": "INELIGIBLE_HOT_FOOD"
+      }
+    },
+    "supplement_ineligible": {
+      "input": {
+        "product_id": "TEST-SUP-001",
+        "product_name": "One A Day Multivitamin",
+        "nutrition_label_type": "supplement_facts"
+      },
+      "expected": {
+        "is_deterministic": true,
+        "is_eligible": false,
+        "category": "INELIGIBLE_SUPPLEMENT"
+      }
+    },
+    "cbd_ineligible": {
+      "input": {
+        "product_id": "TEST-CBD-001",
+        "product_name": "CBD Gummy Bears",
+        "contains_cbd_cannabis": true
+      },
+      "expected": {
+        "is_deterministic": true,
+        "is_eligible": false,
+        "category": "INELIGIBLE_CBD_CANNABIS"
+      }
+    },
+    "live_animal_ineligible": {
+      "input": {
+        "product_id": "TEST-ANI-001",
+        "product_name": "Live Chicken",
+        "is_live_animal": true
+      },
+      "expected": {
+        "is_deterministic": true,
+        "is_eligible": false,
+        "category": "INELIGIBLE_LIVE_ANIMAL"
+      }
+    },
+    "onsite_consumption_ineligible": {
+      "input": {
+        "product_id": "TEST-ONS-001",
+        "product_name": "Restaurant Meal",
+        "is_for_onsite_consumption": true
+      },
+      "expected": {
+        "is_deterministic": true,
+        "is_eligible": false,
+        "category": "INELIGIBLE_ONSITE_CONSUMPTION"
+      }
+    },
+    "produce_eligible": {
+      "input": {
+        "product_id": "TEST-PRO-001",
+        "product_name": "Fresh Apples",
+        "category": "Produce"
+      },
+      "expected": {
+        "is_deterministic": true,
+        "is_eligible": true,
+        "category": "ELIGIBLE_STAPLE_FOOD"
+      }
+    },
+    "beverage_eligible": {
+      "input": {
+        "product_id": "TEST-BEV-001",
+        "product_name": "Coca-Cola Classic",
+        "category": "Beverages",
+        "nutrition_label_type": "nutrition_facts"
+      },
+      "expected": {
+        "is_deterministic": true,
+        "is_eligible": true,
+        "category": "ELIGIBLE_BEVERAGE"
+      }
+    },
+    "snack_eligible": {
+      "input": {
+        "product_id": "TEST-SNK-001",
+        "product_name": "Snickers Bar",
+        "category": "Snacks",
+        "nutrition_label_type": "nutrition_facts"
+      },
+      "expected": {
+        "is_deterministic": true,
+        "is_eligible": true,
+        "category": "ELIGIBLE_SNACK_FOOD"
+      }
+    },
+    "baby_food_eligible": {
+      "input": {
+        "product_id": "TEST-BAB-001",
+        "product_name": "Gerber Baby Cereal",
+        "category": "Baby Food",
+        "nutrition_label_type": "nutrition_facts"
+      },
+      "expected": {
+        "is_deterministic": true,
+        "is_eligible": true,
+        "category": "ELIGIBLE_BABY_FOOD"
+      }
+    },
+    "unknown_ambiguous": {
+      "input": {
+        "product_id": "TEST-UNK-001",
+        "product_name": "Mystery Item"
+      },
+      "expected": {
+        "is_deterministic": false,
+        "requires_ai_reasoning": true
+      }
+    }
+  },
+  "confidence_scorer_tests": {
+    "high_confidence_deterministic": {
+      "classification_method": "rule_based",
+      "has_matching_regulations": true,
+      "category_clearly_defined": true,
+      "expected_min_confidence": 0.95
+    },
+    "medium_confidence_ai": {
+      "classification_method": "ai_reasoning",
+      "has_matching_regulations": true,
+      "category_clearly_defined": false,
+      "expected_min_confidence": 0.70,
+      "expected_max_confidence": 0.90
+    },
+    "low_confidence_uncertain": {
+      "classification_method": "ai_reasoning",
+      "has_matching_regulations": false,
+      "category_clearly_defined": false,
+      "expected_max_confidence": 0.70
+    }
+  },
+  "api_endpoint_tests": {
+    "classify_eligible_product": {
+      "endpoint": "POST /classify",
+      "input": {
+        "product_id": "API-001",
+        "product_name": "Fresh Organic Milk",
+        "category": "Dairy",
+        "nutrition_label_type": "nutrition_facts"
+      },
+      "expected_status": 200,
+      "expected_eligible": true
+    },
+    "classify_ineligible_alcohol": {
+      "endpoint": "POST /classify",
+      "input": {
+        "product_id": "API-002",
+        "product_name": "Wine Bottle",
+        "category": "Beverages",
+        "alcohol_content": 0.12
+      },
+      "expected_status": 200,
+      "expected_eligible": false
+    },
+    "bulk_classify": {
+      "endpoint": "POST /classify/bulk",
+      "input_count": 3,
+      "expected_status": 200,
+      "expected_total_products": 3
+    },
+    "explain_valid_audit_id": {
+      "endpoint": "GET /explain/{audit_id}",
+      "expected_status": 200,
+      "expected_fields": ["classification", "explanation", "product"]
+    },
+    "explain_invalid_audit_id": {
+      "endpoint": "GET /explain/{audit_id}",
+      "audit_id": "nonexistent-id",
+      "expected_status": 404
+    }
+  }
+}
