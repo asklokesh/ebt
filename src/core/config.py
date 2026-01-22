@@ -21,7 +21,13 @@ class Settings(BaseSettings):
     api_port: int = 8000
     api_debug: bool = False
 
-    # Google Gemini API
+    # LLM Configuration (OpenAI-compatible API)
+    llm_provider: str = "openai"  # openai, gemini, ollama, or custom
+    llm_api_key: Optional[str] = None
+    llm_base_url: Optional[str] = None  # Custom API endpoint (e.g., your wrapper)
+    llm_model: str = "gpt-4o-mini"  # Model name for your provider
+
+    # Google Gemini API (legacy, use llm_* settings instead)
     google_api_key: Optional[str] = None
     gemini_model: str = "gemini-1.5-flash"
 
@@ -60,8 +66,22 @@ class Settings(BaseSettings):
         return self.database_url
 
     @property
+    def is_llm_configured(self) -> bool:
+        """Check if any LLM is properly configured."""
+        # Check new unified LLM config first
+        if self.llm_api_key and len(self.llm_api_key) > 0:
+            return True
+        # Fall back to legacy Gemini config
+        if self.google_api_key and len(self.google_api_key) > 0:
+            return True
+        # Check Ollama
+        if self.ollama_enabled:
+            return True
+        return False
+
+    @property
     def is_gemini_configured(self) -> bool:
-        """Check if Gemini API is properly configured."""
+        """Check if Gemini API is properly configured (legacy)."""
         return self.google_api_key is not None and len(self.google_api_key) > 0
 
     @property

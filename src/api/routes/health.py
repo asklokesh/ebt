@@ -30,7 +30,8 @@ async def health_check(
 
     # Check configuration
     config_status = {
-        "gemini_configured": settings.is_gemini_configured,
+        "llm_configured": settings.is_llm_configured,
+        "llm_provider": settings.llm_provider if settings.llm_api_key else ("gemini" if settings.is_gemini_configured else ("ollama" if settings.ollama_enabled else "none")),
         "usda_configured": settings.is_usda_configured,
     }
 

@@ -48,26 +48,60 @@ class ClassificationAgent:
 
     @property
     def llm(self):
-        """Lazy load the LLM."""
+        """Lazy load the LLM based on configuration."""
         if self._llm is None:
-            if not settings.is_gemini_configured:
-                logger.warning("gemini_not_configured")
+            if not settings.is_llm_configured:
+                logger.warning("llm_not_configured")
                 return None
 
             try:
-                from langchain_google_genai import ChatGoogleGenerativeAI
-
-                self._llm = ChatGoogleGenerativeAI(
-                    model=self.model_name,
-                    google_api_key=settings.google_api_key,
-                    temperature=0.1,  # Low temperature for consistent classification
-                )
-                logger.info("llm_initialized", model=self.model_name)
+                self._llm = self._create_llm()
+                logger.info("llm_initialized", model=self.model_name, provider=settings.llm_provider)
             except Exception as e:
                 logger.error("llm_initialization_failed", error=str(e))
                 raise AIReasoningError(f"Failed to initialize LLM: {e}")
 
         return self._llm
+
+    def _create_llm(self):
+        """Create LLM instance based on provider configuration."""
+        # Check for new unified LLM config first (supports any OpenAI-compatible API)
+        if settings.llm_api_key:
+            from langchain_openai import ChatOpenAI
+
+            kwargs = {
+                "model": settings.llm_model,
+                "api_key": settings.llm_api_key,
+                "temperature": 0.1,
+            }
+
+            # Custom base URL for wrapper APIs
+            if settings.llm_base_url:
+                kwargs["base_url"] = settings.llm_base_url
+
+            return ChatOpenAI(**kwargs)
+
+        # Legacy Gemini support
+        if settings.is_gemini_configured:
+            from langchain_google_genai import ChatGoogleGenerativeAI
+
+            return ChatGoogleGenerativeAI(
+                model=settings.gemini_model,
+                google_api_key=settings.google_api_key,
+                temperature=0.1,
+            )
+
+        # Ollama fallback
+        if settings.ollama_enabled:
+            from langchain_ollama import ChatOllama
+
+            return ChatOllama(
+                model=settings.ollama_model,
+                base_url=settings.ollama_base_url,
+                temperature=0.1,
+            )
+
+        return None
 
     async def reason(
         self,
