@@ -1,10 +1,13 @@
 """Product search routes."""
 
+import json
+import re
 from typing import List, Optional
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
+from src.core.config import settings
 from src.data.external.usda_api import get_usda_client
 from src.utils.logging import get_logger
 
@@ -43,7 +46,7 @@ async def search_products(
     """
     Search for products by name or UPC.
 
-    Returns product suggestions from USDA FoodData Central database.
+    Returns product suggestions from USDA FoodData Central or LLM.
     """
     logger.info("product_search", query=q, limit=limit)
 
@@ -75,72 +78,73 @@ async def search_products(
         except Exception as e:
             logger.warning("usda_search_failed", error=str(e))
 
-    # If no USDA results, provide common products as fallback
+    # If no USDA results, use LLM to suggest products
     if not results:
-        results = _get_common_products(q, limit)
+        results = await _get_llm_suggestions(q, limit)
 
     return SearchResponse(
         query=q,
         results=results[:limit],
         total=len(results),
-        source="usda" if usda_client.is_configured() else "fallback",
+        source="usda" if usda_client.is_configured() and results else "llm",
     )
 
 
-def _get_common_products(query: str, limit: int) -> List[ProductSuggestion]:
+async def _get_llm_suggestions(query: str, limit: int) -> List[ProductSuggestion]:
     """
-    Get common products matching query as fallback.
-
-    This provides basic functionality when USDA API is not configured.
+    Use LLM to suggest products matching the query.
     """
-    query_lower = query.lower()
+    if not settings.ollama_enabled:
+        logger.warning("llm_not_configured_for_search")
+        return []
 
-    # Common products database (fallback)
-    common_products = [
-        ProductSuggestion(name="Fresh Apples", category="Produce", data_source="fallback"),
-        ProductSuggestion(name="Organic Bananas", category="Produce", data_source="fallback"),
-        ProductSuggestion(name="Whole Milk", brand="Dairy Pure", category="Dairy", data_source="fallback"),
-        ProductSuggestion(name="2% Reduced Fat Milk", category="Dairy", data_source="fallback"),
-        ProductSuggestion(name="White Bread", brand="Wonder", category="Bakery", data_source="fallback"),
-        ProductSuggestion(name="Whole Wheat Bread", category="Bakery", data_source="fallback"),
-        ProductSuggestion(name="Ground Beef 80/20", category="Meat", data_source="fallback"),
-        ProductSuggestion(name="Chicken Breast", category="Meat", data_source="fallback"),
-        ProductSuggestion(name="Eggs Large Grade A", category="Dairy", data_source="fallback"),
-        ProductSuggestion(name="Cheddar Cheese", category="Dairy", data_source="fallback"),
-        ProductSuggestion(name="Orange Juice", brand="Tropicana", category="Beverages", data_source="fallback"),
-        ProductSuggestion(name="Coca-Cola", brand="Coca-Cola", category="Beverages", data_source="fallback"),
-        ProductSuggestion(name="Pepsi Cola", brand="PepsiCo", category="Beverages", data_source="fallback"),
-        ProductSuggestion(name="Monster Energy Drink", brand="Monster", category="Beverages", data_source="fallback"),
-        ProductSuggestion(name="Red Bull Energy Drink", brand="Red Bull", category="Beverages", data_source="fallback"),
-        ProductSuggestion(name="Budweiser Beer", brand="Anheuser-Busch", category="Alcohol", data_source="fallback"),
-        ProductSuggestion(name="Corona Extra Beer", brand="Corona", category="Alcohol", data_source="fallback"),
-        ProductSuggestion(name="Jack Daniel's Whiskey", brand="Jack Daniel's", category="Alcohol", data_source="fallback"),
-        ProductSuggestion(name="Marlboro Cigarettes", brand="Philip Morris", category="Tobacco", data_source="fallback"),
-        ProductSuggestion(name="Centrum Multivitamin", brand="Centrum", category="Supplements", data_source="fallback"),
-        ProductSuggestion(name="Vitamin D3 Supplement", category="Supplements", data_source="fallback"),
-        ProductSuggestion(name="Fish Oil Omega-3", category="Supplements", data_source="fallback"),
-        ProductSuggestion(name="Rotisserie Chicken (Hot)", category="Prepared Foods", data_source="fallback"),
-        ProductSuggestion(name="Hot Dog (Ready to Eat)", category="Prepared Foods", data_source="fallback"),
-        ProductSuggestion(name="Pizza Slice (Hot)", category="Prepared Foods", data_source="fallback"),
-        ProductSuggestion(name="Frozen Pizza", brand="DiGiorno", category="Frozen Foods", data_source="fallback"),
-        ProductSuggestion(name="Ice Cream", brand="Ben & Jerry's", category="Frozen Foods", data_source="fallback"),
-        ProductSuggestion(name="Potato Chips", brand="Lay's", category="Snacks", data_source="fallback"),
-        ProductSuggestion(name="Doritos", brand="Frito-Lay", category="Snacks", data_source="fallback"),
-        ProductSuggestion(name="Oreo Cookies", brand="Nabisco", category="Snacks", data_source="fallback"),
-        ProductSuggestion(name="Baby Formula", brand="Similac", category="Baby Food", data_source="fallback"),
-        ProductSuggestion(name="Gerber Baby Food", brand="Gerber", category="Baby Food", data_source="fallback"),
-        ProductSuggestion(name="Canned Tomatoes", brand="Hunt's", category="Canned Goods", data_source="fallback"),
-        ProductSuggestion(name="Canned Beans", category="Canned Goods", data_source="fallback"),
-        ProductSuggestion(name="Vegetable Seeds", category="Seeds", data_source="fallback"),
-        ProductSuggestion(name="CBD Gummies", category="CBD Products", data_source="fallback"),
-    ]
+    try:
+        from langchain_ollama import ChatOllama
 
-    # Filter by query
-    matching = [
-        p for p in common_products
-        if query_lower in p.name.lower() or
-           (p.brand and query_lower in p.brand.lower()) or
-           (p.category and query_lower in p.category.lower())
-    ]
+        llm = ChatOllama(
+            model=settings.ollama_model,
+            base_url=settings.ollama_base_url,
+            temperature=0.3,
+        )
 
-    return matching[:limit] if matching else common_products[:limit]
+        prompt = f"""You are a product database assistant. Given a search query, suggest real grocery/food products that match.
+
+Search query: "{query}"
+
+Return exactly {limit} products as a JSON array. Each product should have:
+- name: Full product name (be specific, e.g., "Horizon Organic Whole Milk" not just "Milk")
+- brand: Brand name if applicable (e.g., "Horizon", "Tropicana", "Lay's")
+- category: One of: Produce, Dairy, Meat, Seafood, Bakery, Beverages, Snacks, Frozen Foods, Canned Goods, Condiments, Baby Food, Supplements, Alcohol, Tobacco, Prepared Foods, Other
+
+Return ONLY valid JSON array, no other text. Example format:
+[{{"name": "Horizon Organic Whole Milk", "brand": "Horizon", "category": "Dairy"}}]
+
+Products matching "{query}":"""
+
+        response = await llm.ainvoke(prompt)
+        content = response.content.strip()
+
+        # Extract JSON from response
+        json_match = re.search(r'\[.*\]', content, re.DOTALL)
+        if json_match:
+            products_data = json.loads(json_match.group())
+
+            results = []
+            for p in products_data[:limit]:
+                if isinstance(p, dict) and p.get("name"):
+                    results.append(ProductSuggestion(
+                        name=p.get("name", "Unknown"),
+                        brand=p.get("brand"),
+                        category=p.get("category"),
+                        data_source="llm",
+                    ))
+
+            logger.info("llm_search_success", results=len(results))
+            return results
+
+    except json.JSONDecodeError as e:
+        logger.warning("llm_json_parse_failed", error=str(e))
+    except Exception as e:
+        logger.warning("llm_search_failed", error=str(e))
+
+    return []
