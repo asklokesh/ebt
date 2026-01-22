@@ -280,13 +280,28 @@ class ClassificationAgent:
         # Extract citations
         citations = self._extract_citations(response)
 
+        # Determine actual data sources used
+        data_sources = []
+        if settings.ollama_enabled:
+            data_sources.append(f"Ollama ({settings.ollama_model})")
+        elif settings.llm_api_key:
+            data_sources.append(f"LLM API ({settings.llm_model})")
+        elif settings.is_gemini_configured:
+            data_sources.append(f"Gemini ({settings.gemini_model})")
+
+        if self.retriever and self.retriever.is_available:
+            data_sources.append("SNAP Regulation Vector Store")
+
+        if not data_sources:
+            data_sources.append("Rule-based analysis")
+
         return AIReasoningResult(
             is_eligible=is_eligible,
             category=category,
             reasoning_chain=reasoning_chain,
             citations=citations,
             key_factors=key_factors,
-            data_sources_used=["Gemini AI", "SNAP Regulation Vector Store"],
+            data_sources_used=data_sources,
         )
 
     def _extract_eligibility(self, response_lower: str) -> bool:

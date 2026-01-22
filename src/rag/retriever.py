@@ -31,6 +31,11 @@ class SNAPRegulationRetriever:
         """
         self.vector_store = vector_store or get_vector_store()
 
+    @property
+    def is_available(self) -> bool:
+        """Check if the retriever is available (has a working vector store)."""
+        return self.vector_store is not None and self.vector_store.is_available
+
     def retrieve(
         self,
         query: str,
