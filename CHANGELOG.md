@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Quick Test Products buttons now properly update form state using widget keys
 - Streamlit import path issues resolved
 - Search fallback behavior when USDA API not configured
+- Data sources display now shows actual LLM provider (was hardcoded to "Gemini AI")
 
 ## [1.0.0] - 2026-01-21
 
