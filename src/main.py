@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.dependencies import shutdown_event, startup_event
-from src.api.routes import audit, challenge, classify, explain, health
+from src.api.routes import audit, challenge, classify, explain, health, search
 from src.core.config import settings
 
 
@@ -56,6 +56,7 @@ app.include_router(classify.router)
 app.include_router(explain.router)
 app.include_router(challenge.router)
 app.include_router(audit.router)
+app.include_router(search.router)
 
 
 if __name__ == "__main__":

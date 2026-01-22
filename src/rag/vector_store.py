@@ -1,16 +1,21 @@
-"""ChromaDB vector store integration."""
+"""ChromaDB vector store integration (optional)."""
 
 from typing import Any, List, Optional
 
-import chromadb
-from chromadb.config import Settings as ChromaSettings
-
 from src.core.config import settings
 from src.core.exceptions import VectorStoreError
-from src.rag.embeddings import EmbeddingsManager, get_embeddings
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Try to import chromadb, but make it optional
+try:
+    import chromadb
+    from chromadb.config import Settings as ChromaSettings
+    CHROMADB_AVAILABLE = True
+except ImportError:
+    CHROMADB_AVAILABLE = False
+    logger.warning("chromadb_not_available", message="ChromaDB not installed, RAG features disabled")
 
 
 class VectorStore:
@@ -20,7 +25,7 @@ class VectorStore:
         self,
         persist_directory: str = None,
         collection_name: str = None,
-        embeddings: EmbeddingsManager = None,
+        embeddings: Any = None,
     ):
         """
         Initialize vector store.
@@ -32,13 +37,34 @@ class VectorStore:
         """
         self.persist_directory = persist_directory or settings.chroma_persist_directory
         self.collection_name = collection_name or settings.chroma_collection_name
-        self.embeddings = embeddings or get_embeddings()
+        self._embeddings = embeddings
         self._client = None
         self._collection = None
+        self._available = CHROMADB_AVAILABLE
 
     @property
-    def client(self) -> chromadb.PersistentClient:
+    def embeddings(self):
+        """Lazy load embeddings."""
+        if self._embeddings is None and self._available:
+            try:
+                from src.rag.embeddings import get_embeddings
+                self._embeddings = get_embeddings()
+            except Exception as e:
+                logger.warning("embeddings_load_failed", error=str(e))
+                self._available = False
+        return self._embeddings
+
+    @property
+    def is_available(self) -> bool:
+        """Check if vector store is available."""
+        return self._available and CHROMADB_AVAILABLE
+
+    @property
+    def client(self):
         """Get or create ChromaDB client."""
+        if not self.is_available:
+            return None
+
         if self._client is None:
             try:
                 self._client = chromadb.PersistentClient(
@@ -54,12 +80,16 @@ class VectorStore:
                 )
             except Exception as e:
                 logger.error("chromadb_client_failed", error=str(e))
-                raise VectorStoreError(f"Failed to create ChromaDB client: {e}")
+                self._available = False
+                return None
         return self._client
 
     @property
-    def collection(self) -> chromadb.Collection:
+    def collection(self):
         """Get or create the collection."""
+        if not self.is_available or self.client is None:
+            return None
+
         if self._collection is None:
             try:
                 self._collection = self.client.get_or_create_collection(
@@ -73,7 +103,8 @@ class VectorStore:
                 )
             except Exception as e:
                 logger.error("chromadb_collection_failed", error=str(e))
-                raise VectorStoreError(f"Failed to get/create collection: {e}")
+                self._available = False
+                return None
         return self._collection
 
     def add_documents(
@@ -82,41 +113,24 @@ class VectorStore:
         metadatas: Optional[List[dict]] = None,
         ids: Optional[List[str]] = None,
     ) -> None:
-        """
-        Add documents to the vector store.
-
-        Args:
-            documents: List of document texts
-            metadatas: Optional metadata for each document
-            ids: Optional IDs for each document
-        """
-        if not documents:
+        """Add documents to the vector store."""
+        if not self.is_available or not documents:
             return
 
         try:
-            # Generate embeddings
             embeddings = self.embeddings.embed_texts(documents)
-
-            # Generate IDs if not provided
             if ids is None:
                 ids = [f"doc_{i}" for i in range(len(documents))]
 
-            # Add to collection
             self.collection.add(
                 documents=documents,
                 embeddings=embeddings,
                 metadatas=metadatas,
                 ids=ids,
             )
-
-            logger.info(
-                "documents_added",
-                count=len(documents),
-                collection=self.collection_name,
-            )
+            logger.info("documents_added", count=len(documents))
         except Exception as e:
             logger.error("add_documents_failed", error=str(e))
-            raise VectorStoreError(f"Failed to add documents: {e}")
 
     def query(
         self,
@@ -124,22 +138,12 @@ class VectorStore:
         n_results: int = 5,
         where: Optional[dict] = None,
     ) -> List[dict]:
-        """
-        Query the vector store.
+        """Query the vector store."""
+        if not self.is_available:
+            return []
 
-        Args:
-            query_text: Text to search for
-            n_results: Number of results to return
-            where: Optional filter conditions
-
-        Returns:
-            List of matching documents with metadata
-        """
         try:
-            # Generate query embedding
             query_embedding = self.embeddings.embed_text(query_text)
-
-            # Query collection
             results = self.collection.query(
                 query_embeddings=[query_embedding],
                 n_results=n_results,
@@ -147,7 +151,6 @@ class VectorStore:
                 include=["documents", "metadatas", "distances"],
             )
 
-            # Format results
             formatted_results = []
             if results["documents"] and results["documents"][0]:
                 for i, doc in enumerate(results["documents"][0]):
@@ -170,40 +173,36 @@ class VectorStore:
                         ),
                     })
 
-            logger.info(
-                "query_executed",
-                query_length=len(query_text),
-                results_count=len(formatted_results),
-            )
-
             return formatted_results
         except Exception as e:
             logger.error("query_failed", error=str(e))
-            raise VectorStoreError(f"Failed to query vector store: {e}")
+            return []
 
     def delete_collection(self) -> None:
         """Delete the current collection."""
+        if not self.is_available:
+            return
         try:
             self.client.delete_collection(self.collection_name)
             self._collection = None
-            logger.info("collection_deleted", name=self.collection_name)
         except Exception as e:
             logger.error("delete_collection_failed", error=str(e))
-            raise VectorStoreError(f"Failed to delete collection: {e}")
 
     def reset(self) -> None:
         """Reset the entire database."""
+        if not self.is_available:
+            return
         try:
             self.client.reset()
             self._collection = None
-            logger.info("vector_store_reset")
         except Exception as e:
             logger.error("reset_failed", error=str(e))
-            raise VectorStoreError(f"Failed to reset vector store: {e}")
 
     @property
     def count(self) -> int:
         """Get the number of documents in the collection."""
+        if not self.is_available or self.collection is None:
+            return 0
         return self.collection.count()
 
 
