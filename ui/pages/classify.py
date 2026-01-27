@@ -3,10 +3,15 @@
 import streamlit as st
 import httpx
 import os
+import json
+import re
 from typing import Optional, Dict, Any, List
 
 # API URL from environment or default
 API_URL = os.environ.get("API_URL", "http://localhost:8000")
+
+# Check if we're running on Streamlit Cloud (no local API)
+IS_CLOUD = os.environ.get("STREAMLIT_SHARING_MODE") or not os.environ.get("API_URL")
 
 # Design tokens
 COLORS = {
@@ -113,10 +118,137 @@ def get_llm_headers() -> dict:
     return headers
 
 
+def get_cloud_llm():
+    """Get cloud LLM instance for direct calls."""
+    api_key = st.session_state.get("ollama_cloud_key", "")
+    if not api_key:
+        return None
+
+    try:
+        from langchain_openai import ChatOpenAI
+        return ChatOpenAI(
+            model="gpt-oss:20b-cloud",
+            api_key=api_key,
+            base_url="https://api.ollama.com/v1",
+            temperature=0.3,
+        )
+    except Exception as e:
+        st.error(f"Failed to initialize LLM: {e}")
+        return None
+
+
+def search_products_direct(query: str, limit: int = 6) -> list:
+    """Search for products using LLM directly (for cloud deployment)."""
+    llm = get_cloud_llm()
+    if not llm:
+        return []
+
+    prompt = f"""You are a product database assistant. Given a search query, suggest real grocery/food products that match.
+
+Search query: "{query}"
+
+Return exactly {limit} products as a JSON array. Each product should have:
+- name: Full product name (be specific, e.g., "Horizon Organic Whole Milk" not just "Milk")
+- brand: Brand name if applicable (e.g., "Horizon", "Tropicana", "Lay's")
+- category: One of: Produce, Dairy, Meat, Seafood, Bakery, Beverages, Snacks, Frozen Foods, Canned Goods, Condiments, Baby Food, Supplements, Alcohol, Tobacco, Prepared Foods, Other
+- typical_price: Typical US retail price in dollars (number only, e.g., 4.99)
+
+Return ONLY valid JSON array, no other text. Example format:
+[{{"name": "Horizon Organic Whole Milk", "brand": "Horizon", "category": "Dairy", "typical_price": 5.99}}]
+
+Products matching "{query}":"""
+
+    try:
+        response = llm.invoke(prompt)
+        content = response.content.strip()
+
+        # Extract JSON from response
+        json_match = re.search(r'\[.*\]', content, re.DOTALL)
+        if json_match:
+            products_data = json.loads(json_match.group())
+
+            results = []
+            for p in products_data[:limit]:
+                if isinstance(p, dict) and p.get("name"):
+                    typical_price = p.get("typical_price")
+                    if typical_price is not None:
+                        try:
+                            typical_price = float(typical_price)
+                        except (ValueError, TypeError):
+                            typical_price = None
+
+                    results.append({
+                        "name": p.get("name", "Unknown"),
+                        "brand": p.get("brand"),
+                        "category": p.get("category"),
+                        "data_source": "llm",
+                        "avg_price": typical_price,
+                    })
+            return results
+    except Exception as e:
+        st.error(f"Search failed: {e}")
+
+    return []
+
+
+def classify_product_direct(product_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Classify a product using LLM directly (for cloud deployment)."""
+    llm = get_cloud_llm()
+    if not llm:
+        return None
+
+    product_name = product_data.get("product_name", "Unknown")
+    category = product_data.get("category", "")
+    brand = product_data.get("brand", "")
+
+    prompt = f"""You are an expert on SNAP/EBT eligibility rules (7 CFR 271.2).
+
+Determine if this product is eligible for purchase with SNAP/EBT benefits:
+
+Product: {product_name}
+Brand: {brand or "Unknown"}
+Category: {category or "Unknown"}
+
+SNAP ELIGIBILITY RULES:
+ELIGIBLE: Food for home consumption, seeds/plants for food, non-alcoholic beverages, snacks with Nutrition Facts
+INELIGIBLE: Alcohol (>0.5% ABV), tobacco, vitamins/supplements (Supplement Facts label), hot prepared foods, food for on-premises consumption, live animals, CBD/cannabis
+
+Respond in this exact JSON format:
+{{
+    "is_ebt_eligible": true or false,
+    "confidence_score": 0.0 to 1.0,
+    "category": "ELIGIBLE_STAPLE_FOOD" or "ELIGIBLE_BEVERAGE" or "ELIGIBLE_SNACK_FOOD" or "INELIGIBLE_ALCOHOL" or "INELIGIBLE_SUPPLEMENT" or "INELIGIBLE_HOT_FOOD" or "INELIGIBLE_OTHER",
+    "reasoning_chain": ["reason 1", "reason 2", "reason 3"],
+    "key_factors": ["factor 1", "factor 2"]
+}}
+
+Return ONLY valid JSON, no other text."""
+
+    try:
+        response = llm.invoke(prompt)
+        content = response.content.strip()
+
+        # Extract JSON from response
+        json_match = re.search(r'\{.*\}', content, re.DOTALL)
+        if json_match:
+            result = json.loads(json_match.group())
+            return result
+    except Exception as e:
+        st.error(f"Classification failed: {e}")
+
+    return None
+
+
 def search_products(query: str) -> list:
-    """Search for products via API."""
+    """Search for products - uses direct LLM on cloud, API locally."""
     if len(query) < 2:
         return []
+
+    # Use direct LLM if on cloud or cloud mode is selected
+    if IS_CLOUD or st.session_state.get("llm_mode") == "cloud":
+        return search_products_direct(query)
+
+    # Otherwise use API
     try:
         response = httpx.get(
             f"{API_URL}/search/products",
@@ -132,7 +264,12 @@ def search_products(query: str) -> list:
 
 
 def classify_product(product_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Classify a product via API."""
+    """Classify a product - uses direct LLM on cloud, API locally."""
+    # Use direct LLM if on cloud or cloud mode is selected
+    if IS_CLOUD or st.session_state.get("llm_mode") == "cloud":
+        return classify_product_direct(product_data)
+
+    # Otherwise use API
     try:
         response = httpx.post(
             f"{API_URL}/classify",
@@ -164,6 +301,42 @@ def remove_from_saved_list(index: int) -> None:
         st.session_state.saved_list.pop(index)
 
 
+def render_docs_panel() -> None:
+    """Render the documentation panel."""
+    st.markdown("#### SNAP Eligibility Rules")
+    st.markdown("*Based on 7 CFR 271.2*")
+
+    st.markdown("**Eligible Items**")
+    st.markdown("""
+- Food for home consumption
+- Seeds and plants for food
+- Non-alcoholic beverages
+- Snacks with Nutrition Facts label
+- Baby food and formula
+- Meat, dairy, produce, bakery
+""")
+
+    st.markdown("**Ineligible Items**")
+    st.markdown("""
+- Alcohol (>0.5% ABV)
+- Tobacco products
+- Vitamins/supplements
+- Hot prepared foods
+- Restaurant meals
+- Live animals
+- CBD/cannabis products
+""")
+
+    st.markdown("---")
+    st.markdown("**How to Use**")
+    st.caption("""
+1. Search for a product or enter manually
+2. Click "Check" to verify eligibility
+3. Use "Add" to save items to your list
+4. Click "Check All" to verify multiple items
+""")
+
+
 def render_classify_page() -> None:
     """Render the classification page."""
     inject_styles()
@@ -177,45 +350,71 @@ def render_classify_page() -> None:
         st.session_state.saved_list = []
     if "list_results" not in st.session_state:
         st.session_state.list_results = None
+    if "show_docs" not in st.session_state:
+        st.session_state.show_docs = True
 
-    # Header
-    st.markdown("## EBT Eligibility Check")
-    st.caption("Check if a product qualifies for SNAP/EBT benefits")
-
-    # Show list results if available
+    # Show list results if available (full width)
     if st.session_state.list_results:
         render_list_results()
         return
 
-    # Show single product result if available
+    # Show single product result if available (full width)
     if st.session_state.selected_product and st.session_state.last_classification:
         render_result_view()
         return
 
-    # Default: show search with saved list
-    render_search_view()
+    # Main layout with optional docs panel
+    if st.session_state.show_docs:
+        col_main, col_docs = st.columns([3, 1])
+    else:
+        col_main = st.container()
+        col_docs = None
+
+    with col_main:
+        render_search_view()
+
+    if col_docs:
+        with col_docs:
+            # Docs toggle at top
+            if st.button("Hide Guide", key="hide_docs", use_container_width=True):
+                st.session_state.show_docs = False
+                st.rerun()
+            st.markdown("")
+            render_docs_panel()
+    else:
+        # Show button to restore docs in the search view
+        pass
 
 
 def render_search_view() -> None:
     """Render the search interface with saved list."""
 
-    # Two columns: search and saved list
+    # Header with docs toggle
+    col_header, col_toggle = st.columns([4, 1])
+    with col_header:
+        st.markdown("### Search Products")
+    with col_toggle:
+        if not st.session_state.get("show_docs", True):
+            if st.button("Show Guide", key="show_docs_btn"):
+                st.session_state.show_docs = True
+                st.rerun()
+
+    # Search and saved list side by side
     col_search, col_list = st.columns([3, 2])
 
     with col_search:
-        st.markdown("### Search Products")
-
         # Search box
         query = st.text_input(
             "Search products",
-            placeholder="Search by product name...",
+            placeholder="Search by product name (e.g., milk, chips, energy drink)...",
             label_visibility="collapsed",
             key="search_query",
         )
 
         # Search results
         if query and len(query) >= 2:
-            results = search_products(query)
+            with st.spinner("Searching..."):
+                results = search_products(query)
 
             if results:
                 for idx, product in enumerate(results):
@@ -223,10 +422,9 @@ def render_search_view() -> None:
             else:
                 st.info("No products found. Try a different search term.")
 
-        # Manual entry
-        st.markdown("---")
-        st.markdown("<p class='section-header'>Or enter manually</p>", unsafe_allow_html=True)
-        render_manual_entry()
+        # Manual entry (compact)
+        with st.expander("Enter product manually"):
+            render_manual_entry()
 
     with col_list:
         render_saved_list()
