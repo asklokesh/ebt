@@ -2,6 +2,8 @@
 
 An AI-powered classification engine that determines whether retail products are eligible for SNAP/EBT purchase based on USDA regulations (7 CFR 271.2).
 
+**Live Demo:** https://htcinc-classify-ebt.streamlit.app/
+
 ## Features
 
 - **Rule-Based Classification**: Deterministic validation for clear-cut cases (alcohol, tobacco, supplements, hot food, etc.)

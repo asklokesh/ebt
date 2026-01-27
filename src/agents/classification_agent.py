@@ -112,7 +112,7 @@ class ClassificationAgent:
                     from langchain_openai import ChatOpenAI
 
                     return ChatOpenAI(
-                        model=settings.ollama_model,
+                        model=settings.ollama_cloud_model,
                         api_key=settings.ollama_cloud_api_key,
                         base_url=settings.ollama_cloud_base_url,
                         temperature=0.1,

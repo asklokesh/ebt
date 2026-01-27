@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     ollama_cloud_enabled: bool = False
     ollama_cloud_api_key: Optional[str] = None
     ollama_cloud_base_url: str = "https://api.ollama.com/v1"
+    ollama_cloud_model: str = "gpt-oss:20b-cloud"
 
     # Database
     database_url: str = "sqlite:///./data/ebt_classification.db"

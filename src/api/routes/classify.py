@@ -1,8 +1,10 @@
 """Classification endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
 
-from src.api.dependencies import get_engine
+from fastapi import APIRouter, Depends, HTTPException, Header
+
+from src.api.dependencies import get_engine, get_cloud_engine
 from src.core.exceptions import ClassificationError, ValidationError
 from src.models.classification import BulkClassificationResult, ClassificationResult
 from src.models.product import BulkClassifyRequest, ProductInput
@@ -16,7 +18,8 @@ router = APIRouter(prefix="/classify", tags=["classification"])
 async def classify_product(
     product: ProductInput,
     force_reprocess: bool = False,
-    engine: ClassificationEngine = Depends(get_engine),
+    x_ollama_mode: Optional[str] = Header(None, alias="X-Ollama-Mode"),
+    x_ollama_cloud_key: Optional[str] = Header(None, alias="X-Ollama-Cloud-Key"),
 ) -> ClassificationResult:
     """
     Classify a single product for EBT eligibility.
@@ -29,6 +32,12 @@ async def classify_product(
         ClassificationResult with eligibility determination
     """
     try:
+        # Use cloud engine if cloud mode is specified
+        if x_ollama_mode == "cloud" and x_ollama_cloud_key:
+            engine = get_cloud_engine(x_ollama_cloud_key)
+        else:
+            engine = get_engine()
+
         result = await engine.classify(
             product=product,
             request_source="API",

@@ -190,12 +190,12 @@ async def _get_llm_suggestions(
             from langchain_openai import ChatOpenAI
 
             llm = ChatOpenAI(
-                model=settings.ollama_model,
+                model=settings.ollama_cloud_model,
                 api_key=ollama_cloud_key,
                 base_url=settings.ollama_cloud_base_url,
                 temperature=0.3,
             )
-            logger.info("using_ollama_cloud_for_search")
+            logger.info("using_ollama_cloud_for_search", model=settings.ollama_cloud_model)
         else:
             # Use local Ollama - try to import langchain_ollama
             try:
@@ -213,12 +213,12 @@ async def _get_llm_suggestions(
                     from langchain_openai import ChatOpenAI
 
                     llm = ChatOpenAI(
-                        model=settings.ollama_model,
+                        model=settings.ollama_cloud_model,
                         api_key=settings.ollama_cloud_api_key,
                         base_url=settings.ollama_cloud_base_url,
                         temperature=0.3,
                     )
-                    logger.info("fallback_to_ollama_cloud")
+                    logger.info("fallback_to_ollama_cloud", model=settings.ollama_cloud_model)
                 else:
                     logger.warning("langchain_ollama_not_available")
                     return []

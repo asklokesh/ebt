@@ -251,12 +251,22 @@ with col_settings:
         if "llm_mode" not in st.session_state:
             st.session_state.llm_mode = "local"
         if "ollama_cloud_key" not in st.session_state:
-            st.session_state.ollama_cloud_key = ""
+            # Try to load from Streamlit secrets first
+            try:
+                if hasattr(st, "secrets") and "OLLAMA_CLOUD_API_KEY" in st.secrets:
+                    st.session_state.ollama_cloud_key = st.secrets["OLLAMA_CLOUD_API_KEY"]
+                else:
+                    st.session_state.ollama_cloud_key = ""
+            except Exception:
+                st.session_state.ollama_cloud_key = ""
+        if "api_key_saved" not in st.session_state:
+            # Auto-mark as saved if loaded from secrets
+            st.session_state.api_key_saved = bool(st.session_state.ollama_cloud_key)
 
         llm_mode = st.radio(
             "Select mode",
             options=["local", "cloud"],
-            format_func=lambda x: "Local Ollama" if x == "local" else "Ollama Cloud",
+            format_func=lambda x: "Local Ollama" if x == "local" else "Cloud LLM",
             key="llm_mode_radio",
             label_visibility="collapsed",
         )
@@ -266,17 +276,32 @@ with col_settings:
 
         if llm_mode == "cloud":
             st.markdown("")
-            api_key = st.text_input(
-                "Ollama Cloud API Key",
-                type="password",
-                value=st.session_state.ollama_cloud_key,
-                placeholder="Enter your API key",
-                help="Get your key at ollama.com/cloud",
-            )
-            if api_key != st.session_state.ollama_cloud_key:
-                st.session_state.ollama_cloud_key = api_key
 
-            st.caption("[Get API key](https://ollama.com/cloud)")
+            # Check if API key is available from secrets
+            has_secret_key = bool(st.session_state.ollama_cloud_key)
+
+            if has_secret_key:
+                st.success("API key loaded from secrets")
+            else:
+                api_key = st.text_input(
+                    "Cloud API Key",
+                    type="password",
+                    value="",
+                    placeholder="Enter your API key",
+                    help="API key for cloud LLM provider",
+                    key="api_key_input",
+                )
+
+                if st.button("Save Key", key="save_api_key", use_container_width=True):
+                    if api_key:
+                        st.session_state.ollama_cloud_key = api_key
+                        st.session_state.api_key_saved = True
+                        st.rerun()
+
+                if st.session_state.api_key_saved and st.session_state.ollama_cloud_key:
+                    st.success("Key saved for session")
+
+            st.caption("Model: gpt-oss:20b-cloud")
         else:
             st.caption("Using local Ollama at localhost:11434")
 

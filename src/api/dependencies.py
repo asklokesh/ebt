@@ -53,7 +53,7 @@ async def get_audit_repository() -> AuditRepository:
     return AuditRepository()
 
 
-async def get_engine() -> ClassificationEngine:
+def get_engine() -> ClassificationEngine:
     """
     Get classification engine instance.
 
@@ -61,6 +61,48 @@ async def get_engine() -> ClassificationEngine:
         ClassificationEngine instance
     """
     return get_classification_engine()
+
+
+def get_cloud_engine(api_key: str) -> ClassificationEngine:
+    """
+    Get a classification engine configured for cloud LLM.
+
+    Args:
+        api_key: Cloud API key
+
+    Returns:
+        ClassificationEngine with cloud LLM
+    """
+    from src.agents.classification_agent import ClassificationAgent
+    from src.services.ai_reasoning_agent import AIReasoningAgent
+    from src.core.config import settings
+
+    # Create a cloud-configured classification agent
+    class CloudAIReasoningAgent(AIReasoningAgent):
+        def __init__(self, api_key: str):
+            super().__init__()
+            self.cloud_api_key = api_key
+            self._agent = None
+
+        @property
+        def agent(self):
+            if self._agent is None:
+                self._agent = ClassificationAgent(
+                    retriever=self.retriever,
+                    model_name=settings.ollama_cloud_model,
+                )
+                # Override the LLM with cloud configuration
+                from langchain_openai import ChatOpenAI
+                self._agent.llm = ChatOpenAI(
+                    model=settings.ollama_cloud_model,
+                    api_key=self.cloud_api_key,
+                    base_url=settings.ollama_cloud_base_url,
+                    temperature=0.1,
+                )
+            return self._agent
+
+    cloud_agent = CloudAIReasoningAgent(api_key)
+    return ClassificationEngine(ai_agent=cloud_agent)
 
 
 async def get_challenger() -> ChallengeHandler:
