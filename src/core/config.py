@@ -31,10 +31,13 @@ class Settings(BaseSettings):
     google_api_key: Optional[str] = None
     gemini_model: str = "gemini-1.5-flash"
 
-    # Ollama Fallback
+    # Ollama Configuration
     ollama_enabled: bool = False
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.1"
+    ollama_cloud_enabled: bool = False
+    ollama_cloud_api_key: Optional[str] = None
+    ollama_cloud_base_url: str = "https://api.ollama.com/v1"
 
     # Database
     database_url: str = "sqlite:///./data/ebt_classification.db"

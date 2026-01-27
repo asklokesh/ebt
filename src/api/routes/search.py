@@ -4,7 +4,7 @@ import json
 import re
 from typing import List, Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Header
 from pydantic import BaseModel
 
 from src.core.config import settings
@@ -51,6 +51,8 @@ async def search_products(
     q: str = Query(..., min_length=2, description="Search query"),
     limit: int = Query(default=10, ge=1, le=50, description="Max results"),
     include_prices: bool = Query(default=True, description="Include pricing data"),
+    x_ollama_mode: Optional[str] = Header(None, alias="X-Ollama-Mode"),
+    x_ollama_cloud_key: Optional[str] = Header(None, alias="X-Ollama-Cloud-Key"),
 ) -> SearchResponse:
     """
     Search for products by name or UPC.
@@ -90,7 +92,7 @@ async def search_products(
 
     # If no USDA results, use LLM to suggest products
     if not results:
-        results = await _get_llm_suggestions(q, limit)
+        results = await _get_llm_suggestions(q, limit, x_ollama_mode, x_ollama_cloud_key)
 
     # Check if LLM already provided prices
     has_pricing = any(r.avg_price is not None for r in results)
@@ -165,22 +167,44 @@ async def _enrich_with_prices(query: str, results: List[ProductSuggestion]) -> b
         return False
 
 
-async def _get_llm_suggestions(query: str, limit: int) -> List[ProductSuggestion]:
+async def _get_llm_suggestions(
+    query: str,
+    limit: int,
+    ollama_mode: Optional[str] = None,
+    ollama_cloud_key: Optional[str] = None,
+) -> List[ProductSuggestion]:
     """
     Use LLM to suggest products matching the query.
+    Supports both local Ollama and Ollama Cloud.
     """
-    if not settings.ollama_enabled:
+    # Determine which mode to use
+    use_cloud = ollama_mode == "cloud" and ollama_cloud_key
+
+    if not use_cloud and not settings.ollama_enabled:
         logger.warning("llm_not_configured_for_search")
         return []
 
     try:
-        from langchain_ollama import ChatOllama
+        if use_cloud:
+            # Use Ollama Cloud via OpenAI-compatible API
+            from langchain_openai import ChatOpenAI
 
-        llm = ChatOllama(
-            model=settings.ollama_model,
-            base_url=settings.ollama_base_url,
-            temperature=0.3,
-        )
+            llm = ChatOpenAI(
+                model=settings.ollama_model,
+                api_key=ollama_cloud_key,
+                base_url=settings.ollama_cloud_base_url,
+                temperature=0.3,
+            )
+            logger.info("using_ollama_cloud_for_search")
+        else:
+            # Use local Ollama
+            from langchain_ollama import ChatOllama
+
+            llm = ChatOllama(
+                model=settings.ollama_model,
+                base_url=settings.ollama_base_url,
+                temperature=0.3,
+            )
 
         prompt = f"""You are a product database assistant. Given a search query, suggest real grocery/food products that match.
 

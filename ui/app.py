@@ -48,36 +48,37 @@ st.markdown("""
         max-width: 1200px;
     }
 
-    /* Tab styling */
+    /* Tab styling - Button style */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: transparent;
-        border-bottom: 1px solid #E5E5E3;
-        padding-bottom: 0;
+        gap: 12px;
+        background-color: #F0EFED;
+        border-radius: 12px;
+        padding: 6px;
+        border-bottom: none;
     }
 
     .stTabs [data-baseweb="tab"] {
-        height: 48px;
-        padding: 0 24px;
+        height: 44px;
+        padding: 0 28px;
         background-color: transparent;
         border: none;
-        border-radius: 0;
+        border-radius: 8px;
         color: #666666;
         font-weight: 500;
         font-size: 15px;
-        border-bottom: 2px solid transparent;
-        margin-bottom: -1px;
+        transition: all 0.2s ease;
     }
 
     .stTabs [data-baseweb="tab"]:hover {
         color: #1A1A1A;
-        background-color: transparent;
+        background-color: rgba(255, 255, 255, 0.5);
     }
 
     .stTabs [aria-selected="true"] {
         color: #1A1A1A !important;
-        background-color: transparent !important;
-        border-bottom: 2px solid #D4A27C !important;
+        background-color: #FFFFFF !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        font-weight: 600;
     }
 
     .stTabs [data-baseweb="tab-highlight"] {
@@ -235,8 +236,52 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # App header
-st.title("EBT Eligibility Checker")
-st.caption("SNAP/EBT Product Classification")
+col_title, col_settings = st.columns([4, 1])
+
+with col_title:
+    st.title("EBT Eligibility Checker")
+    st.caption("SNAP/EBT Product Classification")
+
+with col_settings:
+    st.markdown("")
+    with st.popover("Settings", use_container_width=True):
+        st.markdown("**LLM Provider**")
+
+        # Initialize session state for LLM mode
+        if "llm_mode" not in st.session_state:
+            st.session_state.llm_mode = "local"
+        if "ollama_cloud_key" not in st.session_state:
+            st.session_state.ollama_cloud_key = ""
+
+        llm_mode = st.radio(
+            "Select mode",
+            options=["local", "cloud"],
+            format_func=lambda x: "Local Ollama" if x == "local" else "Ollama Cloud",
+            key="llm_mode_radio",
+            label_visibility="collapsed",
+        )
+
+        if llm_mode != st.session_state.llm_mode:
+            st.session_state.llm_mode = llm_mode
+
+        if llm_mode == "cloud":
+            st.markdown("")
+            api_key = st.text_input(
+                "Ollama Cloud API Key",
+                type="password",
+                value=st.session_state.ollama_cloud_key,
+                placeholder="Enter your API key",
+                help="Get your key at ollama.com/cloud",
+            )
+            if api_key != st.session_state.ollama_cloud_key:
+                st.session_state.ollama_cloud_key = api_key
+
+            st.caption("[Get API key](https://ollama.com/cloud)")
+        else:
+            st.caption("Using local Ollama at localhost:11434")
+
+        st.markdown("---")
+        st.caption(f"Mode: **{llm_mode.title()}**")
 
 # Tab navigation
 tab1, tab2, tab3 = st.tabs(["Check Eligibility", "Bulk Upload", "History"])

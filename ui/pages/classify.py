@@ -119,6 +119,15 @@ def inject_styles():
     """, unsafe_allow_html=True)
 
 
+def get_llm_headers() -> dict:
+    """Get headers for LLM mode from session state."""
+    headers = {}
+    if st.session_state.get("llm_mode") == "cloud" and st.session_state.get("ollama_cloud_key"):
+        headers["X-Ollama-Mode"] = "cloud"
+        headers["X-Ollama-Cloud-Key"] = st.session_state.ollama_cloud_key
+    return headers
+
+
 def search_products(query: str) -> list:
     """Search for products via API."""
     if len(query) < 2:
@@ -127,6 +136,7 @@ def search_products(query: str) -> list:
         response = httpx.get(
             f"{API_URL}/search/products",
             params={"q": query, "limit": 6},
+            headers=get_llm_headers(),
             timeout=10.0,
         )
         if response.status_code == 200:
@@ -142,6 +152,7 @@ def classify_product(product_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         response = httpx.post(
             f"{API_URL}/classify",
             json=product_data,
+            headers=get_llm_headers(),
             timeout=60.0,
         )
         if response.status_code == 200:
@@ -244,7 +255,9 @@ def render_product_card(product: Dict[str, Any]) -> None:
             st.markdown(f"**{price_text}**")
 
     with col3:
-        if st.button("Check", key=f"select_{product.get('upc', hash(name))}"):
+        # Use unique key combining name, brand, and index
+        unique_key = f"select_{hash(f'{name}_{brand}_{category}_{price_text}')}_{id(product)}"
+        if st.button("Check", key=unique_key):
             st.session_state.selected_product = product
             st.session_state.last_classification = None
             st.rerun()
