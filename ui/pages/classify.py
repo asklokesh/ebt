@@ -1,31 +1,136 @@
-"""Single classification page with search-first UX."""
+"""EBT Eligibility Check - Clean, minimal design."""
 
 import streamlit as st
 import httpx
 import os
 from typing import Optional, Dict, Any
 
-from ui.components.result_display import render_result_display
-from ui.components.reasoning_chain import render_reasoning_chain
-
 # API URL from environment or default
 API_URL = os.environ.get("API_URL", "http://localhost:8000")
+
+# Design tokens
+COLORS = {
+    "accent": "#D4A27C",
+    "success": "#10A37F",
+    "error": "#EF4444",
+    "bg": "#FAFAF9",
+    "card": "#FFFFFF",
+    "text": "#1A1A1A",
+    "muted": "#6B7280",
+}
+
+
+def inject_styles():
+    """Inject custom CSS for clean design."""
+    st.markdown(f"""
+    <style>
+        /* Page background */
+        .stApp {{
+            background-color: {COLORS['bg']};
+        }}
+
+        /* Search input styling */
+        .stTextInput > div > div > input {{
+            border-radius: 12px;
+            border: 1px solid #E5E5E5;
+            padding: 16px 20px;
+            font-size: 16px;
+            background: white;
+        }}
+        .stTextInput > div > div > input:focus {{
+            border-color: {COLORS['accent']};
+            box-shadow: 0 0 0 2px rgba(212, 162, 124, 0.2);
+        }}
+
+        /* Product card */
+        .product-card {{
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 8px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border: 1px solid #F0F0F0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }}
+        .product-card:hover {{
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-color: {COLORS['accent']};
+        }}
+
+        /* Result badges */
+        .result-badge {{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 18px;
+        }}
+        .result-eligible {{
+            background: rgba(16, 163, 127, 0.1);
+            color: {COLORS['success']};
+        }}
+        .result-ineligible {{
+            background: rgba(239, 68, 68, 0.1);
+            color: {COLORS['error']};
+        }}
+
+        /* Coverage card */
+        .coverage-card {{
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 16px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }}
+
+        /* Hide default streamlit elements */
+        #MainMenu {{visibility: hidden;}}
+        footer {{visibility: hidden;}}
+
+        /* Button styling */
+        .stButton > button {{
+            border-radius: 8px;
+            font-weight: 500;
+            padding: 8px 16px;
+        }}
+        .stButton > button[kind="primary"] {{
+            background: {COLORS['accent']};
+            border: none;
+        }}
+
+        /* Metrics cleanup */
+        [data-testid="stMetricValue"] {{
+            font-size: 24px;
+        }}
+
+        /* Section headers */
+        .section-header {{
+            font-size: 14px;
+            font-weight: 600;
+            color: {COLORS['muted']};
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+        }}
+    </style>
+    """, unsafe_allow_html=True)
 
 
 def search_products(query: str) -> list:
     """Search for products via API."""
     if len(query) < 2:
         return []
-
     try:
         response = httpx.get(
             f"{API_URL}/search/products",
-            params={"q": query, "limit": 8},
+            params={"q": query, "limit": 6},
             timeout=10.0,
         )
         if response.status_code == 200:
-            data = response.json()
-            return data.get("results", [])
+            return response.json().get("results", [])
     except Exception:
         pass
     return []
@@ -41,21 +146,17 @@ def classify_product(product_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         )
         if response.status_code == 200:
             return response.json()
-        else:
-            st.error(f"Classification failed: {response.status_code}")
-            return None
+        st.error(f"Classification failed: {response.status_code}")
     except httpx.ConnectError:
         st.error(f"Could not connect to API at {API_URL}")
-        return None
     except Exception as e:
         st.error(f"Error: {str(e)}")
-        return None
+    return None
 
 
 def render_classify_page() -> None:
-    """Render the single classification page."""
-    st.title("EBT Eligibility Check")
-    st.caption("Check if a product is eligible for SNAP/EBT benefits")
+    """Render the classification page."""
+    inject_styles()
 
     # Initialize session state
     if "selected_product" not in st.session_state:
@@ -63,145 +164,134 @@ def render_classify_page() -> None:
     if "last_classification" not in st.session_state:
         st.session_state.last_classification = None
 
-    # If product is selected, show the product card
-    if st.session_state.selected_product:
-        render_product_card(st.session_state.selected_product)
+    # Header
+    st.markdown("## EBT Eligibility Check")
+    st.caption("Check if a product qualifies for SNAP/EBT benefits")
+
+    # Show results view if product selected and classified
+    if st.session_state.selected_product and st.session_state.last_classification:
+        render_result_view()
         return
 
-    # Main search input
-    st.markdown("### Search for a product")
+    # Show product detail if selected but not yet classified
+    if st.session_state.selected_product:
+        render_product_detail()
+        return
 
-    search_input = st.text_input(
-        "Product name or UPC",
-        placeholder="Type product name (e.g., 'milk', 'energy drink', 'vitamins')",
+    # Default: show search
+    render_search_view()
+
+
+def render_search_view() -> None:
+    """Render the search interface."""
+    st.markdown("")
+
+    # Search box
+    query = st.text_input(
+        "Search products",
+        placeholder="Search by product name or UPC...",
         label_visibility="collapsed",
-        key="product_search_input",
+        key="search_query",
     )
 
-    # Show search suggestions
-    if search_input and len(search_input) >= 2:
-        suggestions = search_products(search_input)
+    # Search results
+    if query and len(query) >= 2:
+        results = search_products(query)
 
-        if suggestions:
-            st.markdown("**Select a product:**")
-
-            for i, product in enumerate(suggestions):
-                # Build product label with price if available
-                product_label = product.get("name", "Unknown")
-                if product.get("brand"):
-                    product_label = f"{product['brand']} - {product_label}"
-
-                # Add price info if available
-                price_label = ""
-                if product.get("avg_price"):
-                    price_label = f"${product['avg_price']:.2f}"
-                    if product.get("min_price") and product.get("max_price"):
-                        if product["min_price"] != product["max_price"]:
-                            price_label = f"${product['min_price']:.2f} - ${product['max_price']:.2f}"
-
-                col1, col2 = st.columns([4, 1])
-
-                with col1:
-                    btn_label = product_label
-                    if product.get("category"):
-                        btn_label += f" ({product['category']})"
-
-                    if st.button(
-                        btn_label,
-                        key=f"select_product_{i}",
-                        use_container_width=True,
-                    ):
-                        st.session_state.selected_product = product
-                        st.session_state.last_classification = None
-                        st.rerun()
-
-                with col2:
-                    if price_label:
-                        st.markdown(f"**{price_label}**")
-                    else:
-                        st.caption("--")
-
+        if results:
+            st.markdown("")
+            for product in results:
+                render_product_card(product)
         else:
-            st.info("No products found. Try a different search or use manual entry below.")
+            st.markdown("")
+            st.info("No products found. Try a different search term.")
 
+    # Manual entry option
     st.markdown("---")
-
-    # Show manual entry form
-    render_manual_entry_form()
+    st.markdown("<p class='section-header'>Or enter manually</p>", unsafe_allow_html=True)
+    render_manual_entry()
 
 
 def render_product_card(product: Dict[str, Any]) -> None:
-    """Render the selected product card with classify button."""
-    st.markdown("### Selected Product")
+    """Render a clickable product card."""
+    name = product.get("name", "Unknown Product")
+    brand = product.get("brand", "")
+    category = product.get("category", "")
 
-    # Product info card
-    col1, col2, col3 = st.columns([2, 1, 1])
+    # Format price
+    price_text = ""
+    if product.get("avg_price"):
+        min_p = product.get("min_price", product["avg_price"])
+        max_p = product.get("max_price", product["avg_price"])
+        if min_p != max_p:
+            price_text = f"${min_p:.2f} - ${max_p:.2f}"
+        else:
+            price_text = f"${product['avg_price']:.2f}"
+
+    # Card layout
+    col1, col2, col3 = st.columns([3, 1, 1])
 
     with col1:
-        st.markdown(f"**{product.get('name', 'Unknown Product')}**")
-
-        if product.get("brand"):
-            st.caption(f"Brand: {product['brand']}")
-        if product.get("category"):
-            st.caption(f"Category: {product['category']}")
-        if product.get("upc"):
-            st.caption(f"UPC: {product['upc']}")
+        display_name = f"**{name}**"
+        if brand:
+            display_name = f"**{name}** by {brand}"
+        st.markdown(display_name)
+        if category:
+            st.caption(category)
 
     with col2:
-        # Display pricing information
-        if product.get("avg_price"):
-            st.markdown("**Price**")
-            if product.get("min_price") and product.get("max_price") and product["min_price"] != product["max_price"]:
-                st.markdown(f"${product['min_price']:.2f} - ${product['max_price']:.2f}")
-                st.caption(f"Avg: ${product['avg_price']:.2f}")
-            else:
-                st.markdown(f"${product['avg_price']:.2f}")
-
-            if product.get("price_source"):
-                st.caption(f"via {product['price_source']}")
+        if price_text:
+            st.markdown(f"**{price_text}**")
 
     with col3:
-        if st.button("Change", key="change_product_btn", use_container_width=True):
-            st.session_state.selected_product = None
+        if st.button("Check", key=f"select_{product.get('upc', hash(name))}"):
+            st.session_state.selected_product = product
             st.session_state.last_classification = None
             st.rerun()
 
-    # Advanced options (collapsed by default)
-    with st.expander("Additional Details (optional)"):
-        col_a, col_b = st.columns(2)
 
-        with col_a:
-            is_hot = st.checkbox("Sold hot (ready to eat)", key="opt_hot")
-            is_onsite = st.checkbox("For on-site consumption", key="opt_onsite")
-            has_alcohol = st.checkbox("Contains alcohol", key="opt_alcohol")
+def render_product_detail() -> None:
+    """Render selected product details with classify option."""
+    product = st.session_state.selected_product
 
-        with col_b:
-            has_tobacco = st.checkbox("Contains tobacco/nicotine", key="opt_tobacco")
-            is_supplement = st.checkbox("Supplement Facts label", key="opt_supplement")
-            has_cbd = st.checkbox("Contains CBD/cannabis", key="opt_cbd")
+    # Back button
+    if st.button("Back to search"):
+        st.session_state.selected_product = None
+        st.rerun()
 
-        if has_alcohol:
-            alcohol_pct = st.slider("Alcohol % (ABV)", 0.0, 100.0, 5.0, 0.1, key="opt_alcohol_pct")
+    st.markdown("")
+
+    # Product info
+    name = product.get("name", "Unknown Product")
+    brand = product.get("brand", "")
+    category = product.get("category", "")
+
+    st.markdown(f"### {name}")
+    if brand:
+        st.caption(f"Brand: {brand}")
+    if category:
+        st.caption(f"Category: {category}")
+
+    # Price display
+    if product.get("avg_price"):
+        min_p = product.get("min_price", product["avg_price"])
+        max_p = product.get("max_price", product["avg_price"])
+        if min_p != max_p:
+            st.markdown(f"**${min_p:.2f} - ${max_p:.2f}**")
         else:
-            alcohol_pct = 0.0
+            st.markdown(f"**${product['avg_price']:.2f}**")
+
+    st.markdown("")
 
     # Classify button
-    st.markdown("")
-    if st.button("Check EBT Eligibility", type="primary", use_container_width=True, key="classify_btn"):
-        # Build product data
+    if st.button("Check EBT Eligibility", type="primary", use_container_width=True):
         product_data = {
-            "product_id": product.get("upc") or product.get("fdc_id") or f"SEARCH-{hash(product.get('name', ''))}",
-            "product_name": product.get("name", "Unknown"),
+            "product_id": product.get("upc") or product.get("fdc_id") or f"SEARCH-{hash(name)}",
+            "product_name": name,
             "description": product.get("description") or product.get("ingredients"),
-            "category": product.get("category"),
-            "brand": product.get("brand"),
+            "category": category,
+            "brand": brand,
             "upc": product.get("upc"),
-            "is_hot_at_sale": is_hot,
-            "is_for_onsite_consumption": is_onsite,
-            "alcohol_content": alcohol_pct / 100 if alcohol_pct > 0 else None,
-            "contains_tobacco": has_tobacco,
-            "contains_cbd_cannabis": has_cbd,
-            "nutrition_label_type": "supplement_facts" if is_supplement else None,
         }
 
         with st.spinner("Checking eligibility..."):
@@ -209,140 +299,166 @@ def render_product_card(product: Dict[str, Any]) -> None:
 
         if result:
             st.session_state.last_classification = result
-
-    # Show results if available
-    if st.session_state.last_classification:
-        result = st.session_state.last_classification
-        st.markdown("---")
-        st.header("Result")
-        render_result_display(result)
-
-        # Show EBT price coverage if product has pricing
-        if product.get("avg_price") and result.get("is_ebt_eligible"):
-            st.markdown("---")
-            st.header("EBT Coverage")
-            price = product.get("avg_price")
-            col_price1, col_price2, col_price3 = st.columns(3)
-            with col_price1:
-                st.metric("Regular Price", f"${price:.2f}")
-            with col_price2:
-                st.metric("EBT Covers", f"${price:.2f}", delta="100%")
-            with col_price3:
-                st.metric("You Pay", "$0.00", delta="-100%", delta_color="normal")
-            st.success("This item is fully covered by SNAP/EBT benefits!")
-        elif product.get("avg_price") and not result.get("is_ebt_eligible"):
-            st.markdown("---")
-            st.header("EBT Coverage")
-            price = product.get("avg_price")
-            col_price1, col_price2, col_price3 = st.columns(3)
-            with col_price1:
-                st.metric("Regular Price", f"${price:.2f}")
-            with col_price2:
-                st.metric("EBT Covers", "$0.00")
-            with col_price3:
-                st.metric("You Pay", f"${price:.2f}")
-            st.warning("This item is NOT covered by SNAP/EBT. You must pay the full price.")
-
-        st.markdown("---")
-        st.header("Explanation")
-        render_reasoning_chain(result)
+            st.rerun()
 
 
-def render_manual_entry_form() -> None:
-    """Render manual product entry form."""
-    st.markdown("### Or enter product details manually")
+def render_result_view() -> None:
+    """Render the classification result."""
+    product = st.session_state.selected_product
+    result = st.session_state.last_classification
 
-    with st.form("manual_product_form"):
-        col1, col2 = st.columns(2)
+    # New search button
+    if st.button("New search"):
+        st.session_state.selected_product = None
+        st.session_state.last_classification = None
+        st.rerun()
 
-        with col1:
-            product_name = st.text_input(
-                "Product Name *",
-                placeholder="e.g., Monster Energy Drink",
-            )
-            category = st.selectbox(
-                "Category",
-                options=[
-                    "",
-                    "Produce",
-                    "Dairy",
-                    "Meat",
-                    "Bakery",
-                    "Beverages",
-                    "Snacks",
-                    "Frozen Foods",
-                    "Canned Goods",
-                    "Baby Food",
-                    "Supplements",
-                    "Alcohol",
-                    "Tobacco",
-                    "Prepared Foods",
-                    "Other",
-                ],
-            )
+    st.markdown("")
 
-        with col2:
-            brand = st.text_input("Brand", placeholder="e.g., Monster")
-            upc = st.text_input("UPC Code", placeholder="12-digit barcode")
+    # Product name
+    name = product.get("name", "Unknown Product")
+    st.markdown(f"### {name}")
 
-        # Product attributes
-        st.markdown("**Product Attributes**")
-        attr_col1, attr_col2 = st.columns(2)
+    st.markdown("")
 
-        with attr_col1:
-            is_hot = st.checkbox("Sold hot (ready to eat)", key="manual_hot")
-            is_onsite = st.checkbox("For on-site consumption", key="manual_onsite")
-            has_tobacco = st.checkbox("Contains tobacco/nicotine", key="manual_tobacco")
+    # Result badge
+    is_eligible = result.get("is_ebt_eligible", False)
+    confidence = result.get("confidence_score", 0)
 
-        with attr_col2:
-            has_cbd = st.checkbox("Contains CBD/cannabis", key="manual_cbd")
-            is_supplement = st.checkbox("Has Supplement Facts label", key="manual_supplement")
-            alcohol_content = st.number_input(
-                "Alcohol % (0 if none)",
-                min_value=0.0,
-                max_value=100.0,
-                value=0.0,
-                step=0.1,
-                key="manual_alcohol",
-            )
+    if is_eligible:
+        st.markdown(f"""
+        <div class="result-badge result-eligible">
+            EBT ELIGIBLE
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown(f"""
+        <div class="result-badge result-ineligible">
+            NOT ELIGIBLE
+        </div>
+        """, unsafe_allow_html=True)
 
-        submitted = st.form_submit_button(
-            "Check EBT Eligibility",
-            type="primary",
-            use_container_width=True,
+    st.markdown("")
+
+    # Confidence
+    st.caption(f"Confidence: {confidence * 100:.0f}%")
+
+    # Category/reason
+    category = result.get("classification_category", "")
+    if category:
+        st.caption(f"Category: {category.replace('_', ' ').title()}")
+
+    st.markdown("")
+
+    # EBT Coverage section
+    if product.get("avg_price"):
+        render_coverage_section(product, is_eligible)
+
+    # Reasoning section
+    render_reasoning_section(result)
+
+
+def render_coverage_section(product: Dict[str, Any], is_eligible: bool) -> None:
+    """Render EBT coverage breakdown."""
+    price = product.get("avg_price", 0)
+
+    st.markdown("<p class='section-header'>EBT Coverage</p>", unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric("Price", f"${price:.2f}")
+
+    with col2:
+        if is_eligible:
+            st.metric("EBT Covers", f"${price:.2f}")
+        else:
+            st.metric("EBT Covers", "$0.00")
+
+    with col3:
+        if is_eligible:
+            st.metric("You Pay", "$0.00")
+        else:
+            st.metric("You Pay", f"${price:.2f}")
+
+    if is_eligible:
+        st.markdown(f"""
+        <div style="background: rgba(16, 163, 127, 0.1); padding: 12px 16px; border-radius: 8px; color: {COLORS['success']}; margin-top: 8px;">
+            Fully covered by SNAP/EBT benefits
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown(f"""
+        <div style="background: rgba(239, 68, 68, 0.1); padding: 12px 16px; border-radius: 8px; color: {COLORS['error']}; margin-top: 8px;">
+            Not covered - full price required
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("")
+
+
+def render_reasoning_section(result: Dict[str, Any]) -> None:
+    """Render reasoning in a clean format."""
+    reasoning = result.get("reasoning_chain", [])
+    key_factors = result.get("key_factors", [])
+
+    if reasoning:
+        st.markdown("<p class='section-header'>Why this classification?</p>", unsafe_allow_html=True)
+        for i, step in enumerate(reasoning, 1):
+            st.markdown(f"{i}. {step}")
+
+    if key_factors:
+        st.markdown("")
+        st.markdown("<p class='section-header'>Key factors</p>", unsafe_allow_html=True)
+        for factor in key_factors:
+            st.markdown(f"- {factor}")
+
+    # Data sources (collapsed)
+    data_sources = result.get("data_sources_used", [])
+    if data_sources:
+        with st.expander("Data sources"):
+            for source in data_sources:
+                st.caption(f"- {source}")
+
+
+def render_manual_entry() -> None:
+    """Render simplified manual entry form."""
+    col1, col2 = st.columns(2)
+
+    with col1:
+        product_name = st.text_input(
+            "Product name",
+            placeholder="e.g., Monster Energy Drink",
+            key="manual_name",
         )
 
-        if submitted:
-            if not product_name:
-                st.error("Product name is required")
-            else:
-                product_data = {
-                    "product_id": upc or f"MANUAL-{hash(product_name)}",
-                    "product_name": product_name,
-                    "category": category if category else None,
-                    "brand": brand if brand else None,
-                    "upc": upc if upc else None,
-                    "is_hot_at_sale": is_hot,
-                    "is_for_onsite_consumption": is_onsite,
-                    "alcohol_content": alcohol_content / 100 if alcohol_content > 0 else None,
-                    "contains_tobacco": has_tobacco,
-                    "contains_cbd_cannabis": has_cbd,
-                    "nutrition_label_type": "supplement_facts" if is_supplement else None,
-                }
+    with col2:
+        category = st.selectbox(
+            "Category",
+            options=["", "Produce", "Dairy", "Meat", "Bakery", "Beverages",
+                     "Snacks", "Frozen Foods", "Canned Goods", "Prepared Foods", "Other"],
+            key="manual_category",
+        )
 
-                with st.spinner("Checking eligibility..."):
-                    result = classify_product(product_data)
+    if st.button("Check EBT Eligibility", type="primary", key="manual_check"):
+        if not product_name:
+            st.error("Please enter a product name")
+        else:
+            product_data = {
+                "product_id": f"MANUAL-{hash(product_name)}",
+                "product_name": product_name,
+                "category": category if category else None,
+            }
 
-                if result:
-                    st.session_state.last_classification = result
+            # Store as selected product for result display
+            st.session_state.selected_product = {
+                "name": product_name,
+                "category": category,
+            }
 
-    # Show results if available (outside form)
-    if st.session_state.get("last_classification") and not st.session_state.get("selected_product"):
-        result = st.session_state.last_classification
-        st.markdown("---")
-        st.header("Result")
-        render_result_display(result)
+            with st.spinner("Checking eligibility..."):
+                result = classify_product(product_data)
 
-        st.markdown("---")
-        st.header("Explanation")
-        render_reasoning_chain(result)
+            if result:
+                st.session_state.last_classification = result
+                st.rerun()
