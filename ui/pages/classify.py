@@ -257,9 +257,23 @@ def render_product_card(product: Dict[str, Any], index: int = 0) -> None:
     with col3:
         # Use index-based unique key for reliable button identification
         if st.button("Check", key=f"check_product_{index}", type="primary"):
-            st.session_state.selected_product = dict(product)  # Copy to avoid reference issues
-            st.session_state.last_classification = None
-            st.rerun()
+            # Directly classify the product
+            product_data = {
+                "product_id": product.get("upc") or product.get("fdc_id") or f"SEARCH-{hash(name)}",
+                "product_name": name,
+                "description": product.get("description") or product.get("ingredients"),
+                "category": category,
+                "brand": brand,
+                "upc": product.get("upc"),
+            }
+
+            with st.spinner("Checking eligibility..."):
+                result = classify_product(product_data)
+
+            if result:
+                st.session_state.selected_product = dict(product)
+                st.session_state.last_classification = result
+                st.rerun()
 
 
 def render_product_detail() -> None:
