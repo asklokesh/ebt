@@ -12,6 +12,9 @@ langchain-core==0.3.29
 langchain-openai==0.3.0
 langchain-community==0.3.14
 
+# Ollama Cloud
+ollama>=0.4.0
+
 # Optional: langchain-ollama for local development only
 # Uncomment for local dev: langchain-ollama==0.3.0
 

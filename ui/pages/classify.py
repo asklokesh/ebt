@@ -119,30 +119,45 @@ def get_llm_headers() -> dict:
 
 
 def get_cloud_llm():
-    """Get cloud LLM instance for direct calls."""
+    """Get Ollama Cloud client for direct calls."""
     api_key = st.session_state.get("ollama_cloud_key", "")
     if not api_key:
         return None
 
+    base_url = st.session_state.get("ollama_cloud_base_url", "https://ollama.com")
+    model = st.session_state.get("ollama_cloud_model", "glm-4.7:cloud")
+
     try:
-        from langchain_openai import ChatOpenAI
-        return ChatOpenAI(
-            model="gpt-oss:20b-cloud",
-            api_key=api_key,
-            base_url="https://api.ollama.com/v1",
-            temperature=0.3,
+        import ollama
+        client = ollama.Client(
+            host=base_url,
+            headers={"Authorization": f"Bearer {api_key}"}
         )
+        return {"client": client, "model": model}
     except Exception as e:
-        st.error(f"Failed to initialize LLM: {e}")
+        st.error(f"Failed to initialize Ollama Cloud: {e}")
+        return None
+
+
+def call_cloud_llm(prompt: str) -> str:
+    """Call Ollama Cloud with a prompt and return the response."""
+    llm_config = get_cloud_llm()
+    if not llm_config:
+        return None
+
+    try:
+        response = llm_config["client"].chat(
+            model=llm_config["model"],
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response["message"]["content"]
+    except Exception as e:
+        st.error(f"LLM call failed: {e}")
         return None
 
 
 def search_products_direct(query: str, limit: int = 6) -> list:
     """Search for products using LLM directly (for cloud deployment)."""
-    llm = get_cloud_llm()
-    if not llm:
-        return []
-
     prompt = f"""You are a product database assistant. Given a search query, suggest real grocery/food products that match.
 
 Search query: "{query}"
@@ -159,8 +174,9 @@ Return ONLY valid JSON array, no other text. Example format:
 Products matching "{query}":"""
 
     try:
-        response = llm.invoke(prompt)
-        content = response.content.strip()
+        content = call_cloud_llm(prompt)
+        if not content:
+            return []
 
         # Extract JSON from response
         json_match = re.search(r'\[.*\]', content, re.DOTALL)
@@ -193,10 +209,6 @@ Products matching "{query}":"""
 
 def classify_product_direct(product_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Classify a product using LLM directly (for cloud deployment)."""
-    llm = get_cloud_llm()
-    if not llm:
-        return None
-
     product_name = product_data.get("product_name", "Unknown")
     category = product_data.get("category", "")
     brand = product_data.get("brand", "")
@@ -225,8 +237,9 @@ Respond in this exact JSON format:
 Return ONLY valid JSON, no other text."""
 
     try:
-        response = llm.invoke(prompt)
-        content = response.content.strip()
+        content = call_cloud_llm(prompt)
+        if not content:
+            return None
 
         # Extract JSON from response
         json_match = re.search(r'\{.*\}', content, re.DOTALL)

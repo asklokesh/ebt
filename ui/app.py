@@ -255,10 +255,16 @@ with col_settings:
             try:
                 if hasattr(st, "secrets") and "OLLAMA_CLOUD_API_KEY" in st.secrets:
                     st.session_state.ollama_cloud_key = st.secrets["OLLAMA_CLOUD_API_KEY"]
+                    st.session_state.ollama_cloud_base_url = st.secrets.get("OLLAMA_CLOUD_BASE_URL", "https://ollama.com")
+                    st.session_state.ollama_cloud_model = st.secrets.get("OLLAMA_MODEL", "ministral-3:3b:cloud")
                 else:
                     st.session_state.ollama_cloud_key = ""
+                    st.session_state.ollama_cloud_base_url = "https://ollama.com"
+                    st.session_state.ollama_cloud_model = "ministral-3:3b:cloud"
             except Exception:
                 st.session_state.ollama_cloud_key = ""
+                st.session_state.ollama_cloud_base_url = "https://ollama.com"
+                st.session_state.ollama_cloud_model = "ministral-3:3b:cloud"
         if "api_key_saved" not in st.session_state:
             # Auto-mark as saved if loaded from secrets
             st.session_state.api_key_saved = bool(st.session_state.ollama_cloud_key)
@@ -301,7 +307,8 @@ with col_settings:
                 if st.session_state.api_key_saved and st.session_state.ollama_cloud_key:
                     st.success("Key saved for session")
 
-            st.caption("Model: gpt-oss:20b-cloud")
+            model_name = st.session_state.get("ollama_cloud_model", "llama3.2:3b")
+            st.caption(f"Model: {model_name}")
         else:
             st.caption("Using local Ollama at localhost:11434")
 
