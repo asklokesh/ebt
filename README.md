@@ -4,6 +4,8 @@ An AI-powered classification engine that determines whether retail products are 
 
 **Live Demo:** https://htcinc-classify-ebt.streamlit.app/
 
+![EBT Eligibility Checker Demo](EBT_Eligibility_Checker.gif)
+
 ## Features
 
 - **Rule-Based Classification**: Deterministic validation for clear-cut cases (alcohol, tobacco, supplements, hot food, etc.)
