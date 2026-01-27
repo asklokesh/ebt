@@ -180,7 +180,29 @@ SKU-004,Centrum Vitamin,Health,supplement_facts,0"""
                                 })
 
                             df = pd.DataFrame(df_data)
-                            st.dataframe(df, use_container_width=True)
+
+                            # Apply row-level color styling based on eligibility
+                            def color_row(row):
+                                if row["Eligible"] == "Yes":
+                                    return ["background-color: #d4edda"] * len(row)  # Light green
+                                else:
+                                    return ["background-color: #f8d7da"] * len(row)  # Light red
+
+                            # Apply cell-level styling to Eligible column for emphasis
+                            def color_eligible_cell(val):
+                                if val == "Yes":
+                                    return "background-color: #28a745; color: white; font-weight: bold"  # Dark green
+                                else:
+                                    return "background-color: #dc3545; color: white; font-weight: bold"  # Dark red
+
+                            styled_df = df.style.apply(
+                                color_row, axis=1
+                            ).applymap(
+                                color_eligible_cell,
+                                subset=["Eligible"]
+                            )
+
+                            st.dataframe(styled_df, use_container_width=True, height=400)
 
                             # Download results
                             csv_buffer = io.StringIO()

@@ -86,20 +86,41 @@ def render_classify_page() -> None:
             st.markdown("**Select a product:**")
 
             for i, product in enumerate(suggestions):
+                # Build product label with price if available
                 product_label = product.get("name", "Unknown")
                 if product.get("brand"):
                     product_label = f"{product['brand']} - {product_label}"
-                if product.get("category"):
-                    product_label += f" ({product['category']})"
 
-                if st.button(
-                    product_label,
-                    key=f"select_product_{i}",
-                    use_container_width=True,
-                ):
-                    st.session_state.selected_product = product
-                    st.session_state.last_classification = None
-                    st.rerun()
+                # Add price info if available
+                price_label = ""
+                if product.get("avg_price"):
+                    price_label = f"${product['avg_price']:.2f}"
+                    if product.get("min_price") and product.get("max_price"):
+                        if product["min_price"] != product["max_price"]:
+                            price_label = f"${product['min_price']:.2f} - ${product['max_price']:.2f}"
+
+                col1, col2 = st.columns([4, 1])
+
+                with col1:
+                    btn_label = product_label
+                    if product.get("category"):
+                        btn_label += f" ({product['category']})"
+
+                    if st.button(
+                        btn_label,
+                        key=f"select_product_{i}",
+                        use_container_width=True,
+                    ):
+                        st.session_state.selected_product = product
+                        st.session_state.last_classification = None
+                        st.rerun()
+
+                with col2:
+                    if price_label:
+                        st.markdown(f"**{price_label}**")
+                    else:
+                        st.caption("--")
+
         else:
             st.info("No products found. Try a different search or use manual entry below.")
 
@@ -114,7 +135,7 @@ def render_product_card(product: Dict[str, Any]) -> None:
     st.markdown("### Selected Product")
 
     # Product info card
-    col1, col2 = st.columns([3, 1])
+    col1, col2, col3 = st.columns([2, 1, 1])
 
     with col1:
         st.markdown(f"**{product.get('name', 'Unknown Product')}**")
@@ -127,6 +148,19 @@ def render_product_card(product: Dict[str, Any]) -> None:
             st.caption(f"UPC: {product['upc']}")
 
     with col2:
+        # Display pricing information
+        if product.get("avg_price"):
+            st.markdown("**Price**")
+            if product.get("min_price") and product.get("max_price") and product["min_price"] != product["max_price"]:
+                st.markdown(f"${product['min_price']:.2f} - ${product['max_price']:.2f}")
+                st.caption(f"Avg: ${product['avg_price']:.2f}")
+            else:
+                st.markdown(f"${product['avg_price']:.2f}")
+
+            if product.get("price_source"):
+                st.caption(f"via {product['price_source']}")
+
+    with col3:
         if st.button("Change", key="change_product_btn", use_container_width=True):
             st.session_state.selected_product = None
             st.session_state.last_classification = None
@@ -182,6 +216,32 @@ def render_product_card(product: Dict[str, Any]) -> None:
         st.markdown("---")
         st.header("Result")
         render_result_display(result)
+
+        # Show EBT price coverage if product has pricing
+        if product.get("avg_price") and result.get("is_ebt_eligible"):
+            st.markdown("---")
+            st.header("EBT Coverage")
+            price = product.get("avg_price")
+            col_price1, col_price2, col_price3 = st.columns(3)
+            with col_price1:
+                st.metric("Regular Price", f"${price:.2f}")
+            with col_price2:
+                st.metric("EBT Covers", f"${price:.2f}", delta="100%")
+            with col_price3:
+                st.metric("You Pay", "$0.00", delta="-100%", delta_color="normal")
+            st.success("This item is fully covered by SNAP/EBT benefits!")
+        elif product.get("avg_price") and not result.get("is_ebt_eligible"):
+            st.markdown("---")
+            st.header("EBT Coverage")
+            price = product.get("avg_price")
+            col_price1, col_price2, col_price3 = st.columns(3)
+            with col_price1:
+                st.metric("Regular Price", f"${price:.2f}")
+            with col_price2:
+                st.metric("EBT Covers", "$0.00")
+            with col_price3:
+                st.metric("You Pay", f"${price:.2f}")
+            st.warning("This item is NOT covered by SNAP/EBT. You must pay the full price.")
 
         st.markdown("---")
         st.header("Explanation")
