@@ -1,9 +1,9 @@
-"""EBT Eligibility Check - Clean, minimal design."""
+"""EBT Eligibility Check - Clean, minimal design with saved list feature."""
 
 import streamlit as st
 import httpx
 import os
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 # API URL from environment or default
 API_URL = os.environ.get("API_URL", "http://localhost:8000")
@@ -42,22 +42,6 @@ def inject_styles():
             box-shadow: 0 0 0 2px rgba(212, 162, 124, 0.2);
         }}
 
-        /* Product card */
-        .product-card {{
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            margin: 8px 0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-            border: 1px solid #F0F0F0;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }}
-        .product-card:hover {{
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            border-color: {COLORS['accent']};
-        }}
-
         /* Result badges */
         .result-badge {{
             display: inline-flex;
@@ -77,13 +61,13 @@ def inject_styles():
             color: {COLORS['error']};
         }}
 
-        /* Coverage card */
-        .coverage-card {{
+        /* Saved list item */
+        .saved-item {{
             background: white;
-            border-radius: 12px;
-            padding: 24px;
-            margin: 16px 0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin: 4px 0;
+            border: 1px solid #E5E5E5;
         }}
 
         /* Hide default streamlit elements */
@@ -96,15 +80,6 @@ def inject_styles():
             font-weight: 500;
             padding: 8px 16px;
         }}
-        .stButton > button[kind="primary"] {{
-            background: {COLORS['accent']};
-            border: none;
-        }}
-
-        /* Metrics cleanup */
-        [data-testid="stMetricValue"] {{
-            font-size: 24px;
-        }}
 
         /* Section headers */
         .section-header {{
@@ -114,6 +89,16 @@ def inject_styles():
             text-transform: uppercase;
             letter-spacing: 0.05em;
             margin-bottom: 12px;
+        }}
+
+        /* List badge */
+        .list-count {{
+            background: {COLORS['accent']};
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
         }}
     </style>
     """, unsafe_allow_html=True)
@@ -157,12 +142,26 @@ def classify_product(product_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         )
         if response.status_code == 200:
             return response.json()
-        st.error(f"Classification failed: {response.status_code}")
-    except httpx.ConnectError:
-        st.error(f"Could not connect to API at {API_URL}")
-    except Exception as e:
-        st.error(f"Error: {str(e)}")
+    except Exception:
+        pass
     return None
+
+
+def add_to_saved_list(product: Dict[str, Any]) -> None:
+    """Add a product to the saved list."""
+    if "saved_list" not in st.session_state:
+        st.session_state.saved_list = []
+
+    # Check if already in list (by name)
+    existing_names = [p.get("name") for p in st.session_state.saved_list]
+    if product.get("name") not in existing_names:
+        st.session_state.saved_list.append(dict(product))
+
+
+def remove_from_saved_list(index: int) -> None:
+    """Remove a product from the saved list by index."""
+    if "saved_list" in st.session_state and 0 <= index < len(st.session_state.saved_list):
+        st.session_state.saved_list.pop(index)
 
 
 def render_classify_page() -> None:
@@ -174,57 +173,67 @@ def render_classify_page() -> None:
         st.session_state.selected_product = None
     if "last_classification" not in st.session_state:
         st.session_state.last_classification = None
+    if "saved_list" not in st.session_state:
+        st.session_state.saved_list = []
+    if "list_results" not in st.session_state:
+        st.session_state.list_results = None
 
     # Header
     st.markdown("## EBT Eligibility Check")
     st.caption("Check if a product qualifies for SNAP/EBT benefits")
 
-    # Show results view if product selected and classified
+    # Show list results if available
+    if st.session_state.list_results:
+        render_list_results()
+        return
+
+    # Show single product result if available
     if st.session_state.selected_product and st.session_state.last_classification:
         render_result_view()
         return
 
-    # Show product detail if selected but not yet classified
-    if st.session_state.selected_product:
-        render_product_detail()
-        return
-
-    # Default: show search
+    # Default: show search with saved list
     render_search_view()
 
 
 def render_search_view() -> None:
-    """Render the search interface."""
-    st.markdown("")
+    """Render the search interface with saved list."""
 
-    # Search box
-    query = st.text_input(
-        "Search products",
-        placeholder="Search by product name or UPC...",
-        label_visibility="collapsed",
-        key="search_query",
-    )
+    # Two columns: search and saved list
+    col_search, col_list = st.columns([3, 2])
 
-    # Search results
-    if query and len(query) >= 2:
-        results = search_products(query)
+    with col_search:
+        st.markdown("### Search Products")
 
-        if results:
-            st.markdown("")
-            for idx, product in enumerate(results):
-                render_product_card(product, idx)
-        else:
-            st.markdown("")
-            st.info("No products found. Try a different search term.")
+        # Search box
+        query = st.text_input(
+            "Search products",
+            placeholder="Search by product name...",
+            label_visibility="collapsed",
+            key="search_query",
+        )
 
-    # Manual entry option
-    st.markdown("---")
-    st.markdown("<p class='section-header'>Or enter manually</p>", unsafe_allow_html=True)
-    render_manual_entry()
+        # Search results
+        if query and len(query) >= 2:
+            results = search_products(query)
+
+            if results:
+                for idx, product in enumerate(results):
+                    render_product_card(product, idx)
+            else:
+                st.info("No products found. Try a different search term.")
+
+        # Manual entry
+        st.markdown("---")
+        st.markdown("<p class='section-header'>Or enter manually</p>", unsafe_allow_html=True)
+        render_manual_entry()
+
+    with col_list:
+        render_saved_list()
 
 
 def render_product_card(product: Dict[str, Any], index: int = 0) -> None:
-    """Render a clickable product card."""
+    """Render a product card with Check and Add buttons."""
     name = product.get("name", "Unknown Product")
     brand = product.get("brand", "")
     category = product.get("category", "")
@@ -232,42 +241,38 @@ def render_product_card(product: Dict[str, Any], index: int = 0) -> None:
     # Format price
     price_text = ""
     if product.get("avg_price"):
-        min_p = product.get("min_price", product["avg_price"])
-        max_p = product.get("max_price", product["avg_price"])
-        if min_p != max_p:
-            price_text = f"${min_p:.2f} - ${max_p:.2f}"
-        else:
-            price_text = f"${product['avg_price']:.2f}"
+        price_text = f"${product['avg_price']:.2f}"
+
+    # Check if already in saved list
+    saved_names = [p.get("name") for p in st.session_state.get("saved_list", [])]
+    is_saved = name in saved_names
 
     # Card layout
-    col1, col2, col3 = st.columns([3, 1, 1])
+    col1, col2, col3, col4 = st.columns([2.5, 1, 0.8, 0.8])
 
     with col1:
         display_name = f"**{name}**"
         if brand:
-            display_name = f"**{name}** by {brand}"
+            display_name += f" - {brand}"
         st.markdown(display_name)
         if category:
             st.caption(category)
 
     with col2:
         if price_text:
-            st.markdown(f"**{price_text}**")
+            st.markdown(price_text)
 
     with col3:
-        # Use index-based unique key for reliable button identification
-        if st.button("Check", key=f"check_product_{index}", type="primary"):
-            # Directly classify the product
+        if st.button("Check", key=f"check_{index}", type="primary"):
             product_data = {
-                "product_id": product.get("upc") or product.get("fdc_id") or f"SEARCH-{hash(name)}",
+                "product_id": product.get("upc") or f"SEARCH-{hash(name)}",
                 "product_name": name,
-                "description": product.get("description") or product.get("ingredients"),
+                "description": product.get("description"),
                 "category": category,
                 "brand": brand,
-                "upc": product.get("upc"),
             }
 
-            with st.spinner("Checking eligibility..."):
+            with st.spinner("Checking..."):
                 result = classify_product(product_data)
 
             if result:
@@ -275,66 +280,189 @@ def render_product_card(product: Dict[str, Any], index: int = 0) -> None:
                 st.session_state.last_classification = result
                 st.rerun()
 
-
-def render_product_detail() -> None:
-    """Render selected product details with classify option."""
-    product = st.session_state.selected_product
-
-    # Back button
-    if st.button("Back to search"):
-        st.session_state.selected_product = None
-        st.rerun()
-
-    st.markdown("")
-
-    # Product info
-    name = product.get("name", "Unknown Product")
-    brand = product.get("brand", "")
-    category = product.get("category", "")
-
-    st.markdown(f"### {name}")
-    if brand:
-        st.caption(f"Brand: {brand}")
-    if category:
-        st.caption(f"Category: {category}")
-
-    # Price display
-    if product.get("avg_price"):
-        min_p = product.get("min_price", product["avg_price"])
-        max_p = product.get("max_price", product["avg_price"])
-        if min_p != max_p:
-            st.markdown(f"**${min_p:.2f} - ${max_p:.2f}**")
+    with col4:
+        if is_saved:
+            st.button("Added", key=f"added_{index}", disabled=True)
         else:
-            st.markdown(f"**${product['avg_price']:.2f}**")
+            if st.button("Add", key=f"add_{index}"):
+                add_to_saved_list(product)
+                st.rerun()
+
+
+def render_saved_list() -> None:
+    """Render the saved list panel."""
+    saved_list = st.session_state.get("saved_list", [])
+    count = len(saved_list)
+
+    st.markdown(f"### Saved List <span class='list-count'>{count}</span>", unsafe_allow_html=True)
+
+    if not saved_list:
+        st.caption("Add products from search results to check multiple items at once.")
+        return
+
+    # List items
+    for idx, product in enumerate(saved_list):
+        col1, col2 = st.columns([4, 1])
+
+        with col1:
+            name = product.get("name", "Unknown")
+            price = product.get("avg_price")
+            if price:
+                st.markdown(f"**{name}** - ${price:.2f}")
+            else:
+                st.markdown(f"**{name}**")
+
+        with col2:
+            if st.button("X", key=f"remove_{idx}"):
+                remove_from_saved_list(idx)
+                st.rerun()
 
     st.markdown("")
 
-    # Classify button
-    if st.button("Check EBT Eligibility", type="primary", use_container_width=True):
-        product_data = {
-            "product_id": product.get("upc") or product.get("fdc_id") or f"SEARCH-{hash(name)}",
-            "product_name": name,
-            "description": product.get("description") or product.get("ingredients"),
-            "category": category,
-            "brand": brand,
-            "upc": product.get("upc"),
-        }
+    # Action buttons
+    col_check, col_clear = st.columns(2)
 
-        with st.spinner("Checking eligibility..."):
-            result = classify_product(product_data)
+    with col_check:
+        if st.button("Check All", type="primary", use_container_width=True):
+            check_all_saved_products()
 
-        if result:
-            st.session_state.last_classification = result
+    with col_clear:
+        if st.button("Clear All", use_container_width=True):
+            st.session_state.saved_list = []
             st.rerun()
 
 
+def check_all_saved_products() -> None:
+    """Check eligibility for all saved products."""
+    saved_list = st.session_state.get("saved_list", [])
+    if not saved_list:
+        return
+
+    results = []
+    progress = st.progress(0, text="Checking eligibility...")
+
+    for idx, product in enumerate(saved_list):
+        name = product.get("name", "Unknown")
+        progress.progress((idx + 1) / len(saved_list), text=f"Checking {name}...")
+
+        product_data = {
+            "product_id": product.get("upc") or f"LIST-{hash(name)}",
+            "product_name": name,
+            "description": product.get("description"),
+            "category": product.get("category"),
+            "brand": product.get("brand"),
+        }
+
+        result = classify_product(product_data)
+        results.append({
+            "product": product,
+            "result": result,
+        })
+
+    progress.empty()
+    st.session_state.list_results = results
+    st.rerun()
+
+
+def render_list_results() -> None:
+    """Render results for all checked products."""
+    results = st.session_state.list_results
+
+    # Back button
+    if st.button("Back to search"):
+        st.session_state.list_results = None
+        st.rerun()
+
+    st.markdown("")
+    st.markdown("### Eligibility Results")
+
+    # Summary stats
+    eligible_count = sum(1 for r in results if r.get("result", {}).get("is_ebt_eligible", False))
+    total_count = len(results)
+    total_price = sum(r.get("product", {}).get("avg_price", 0) or 0 for r in results)
+    ebt_covered = sum(
+        r.get("product", {}).get("avg_price", 0) or 0
+        for r in results
+        if r.get("result", {}).get("is_ebt_eligible", False)
+    )
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        st.metric("Total Items", total_count)
+    with col2:
+        st.metric("EBT Eligible", eligible_count)
+    with col3:
+        st.metric("Total Price", f"${total_price:.2f}")
+    with col4:
+        st.metric("EBT Covers", f"${ebt_covered:.2f}")
+
+    st.markdown("")
+
+    # Results list
+    for item in results:
+        product = item.get("product", {})
+        result = item.get("result", {})
+
+        name = product.get("name", "Unknown")
+        price = product.get("avg_price", 0) or 0
+        is_eligible = result.get("is_ebt_eligible", False) if result else False
+        confidence = result.get("confidence_score", 0) if result else 0
+
+        # Row styling based on eligibility
+        if is_eligible:
+            bg_color = "rgba(16, 163, 127, 0.1)"
+            badge = f"<span style='background: {COLORS['success']}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px;'>ELIGIBLE</span>"
+        else:
+            bg_color = "rgba(239, 68, 68, 0.1)"
+            badge = f"<span style='background: {COLORS['error']}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px;'>NOT ELIGIBLE</span>"
+
+        st.markdown(f"""
+        <div style="background: {bg_color}; padding: 16px; border-radius: 8px; margin: 8px 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong>{name}</strong>
+                    <span style="color: {COLORS['muted']}; margin-left: 12px;">${price:.2f}</span>
+                </div>
+                <div>
+                    {badge}
+                    <span style="color: {COLORS['muted']}; margin-left: 8px; font-size: 12px;">{confidence * 100:.0f}%</span>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("")
+
+    # Summary box
+    you_pay = total_price - ebt_covered
+    st.markdown(f"""
+    <div style="background: white; padding: 20px; border-radius: 12px; border: 2px solid {COLORS['accent']}; margin-top: 16px;">
+        <div style="display: flex; justify-content: space-between;">
+            <div>
+                <div style="color: {COLORS['muted']}; font-size: 12px; text-transform: uppercase;">Total</div>
+                <div style="font-size: 24px; font-weight: 600;">${total_price:.2f}</div>
+            </div>
+            <div>
+                <div style="color: {COLORS['muted']}; font-size: 12px; text-transform: uppercase;">EBT Covers</div>
+                <div style="font-size: 24px; font-weight: 600; color: {COLORS['success']};">${ebt_covered:.2f}</div>
+            </div>
+            <div>
+                <div style="color: {COLORS['muted']}; font-size: 12px; text-transform: uppercase;">You Pay</div>
+                <div style="font-size: 24px; font-weight: 600; color: {COLORS['error'] if you_pay > 0 else COLORS['success']};">${you_pay:.2f}</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
 def render_result_view() -> None:
-    """Render the classification result."""
+    """Render single product classification result."""
     product = st.session_state.selected_product
     result = st.session_state.last_classification
 
-    # New search button
-    if st.button("New search"):
+    # Back button
+    if st.button("Back to search"):
         st.session_state.selected_product = None
         st.session_state.last_classification = None
         st.rerun()
@@ -365,86 +493,29 @@ def render_result_view() -> None:
         """, unsafe_allow_html=True)
 
     st.markdown("")
-
-    # Confidence
     st.caption(f"Confidence: {confidence * 100:.0f}%")
-
-    # Category/reason
-    category = result.get("classification_category", "")
-    if category:
-        st.caption(f"Category: {category.replace('_', ' ').title()}")
-
-    st.markdown("")
 
     # EBT Coverage section
     if product.get("avg_price"):
-        render_coverage_section(product, is_eligible)
+        price = product.get("avg_price", 0)
+        st.markdown("")
+        st.markdown("<p class='section-header'>EBT Coverage</p>", unsafe_allow_html=True)
 
-    # Reasoning section
-    render_reasoning_section(result)
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Price", f"${price:.2f}")
+        with col2:
+            st.metric("EBT Covers", f"${price:.2f}" if is_eligible else "$0.00")
+        with col3:
+            st.metric("You Pay", "$0.00" if is_eligible else f"${price:.2f}")
 
-
-def render_coverage_section(product: Dict[str, Any], is_eligible: bool) -> None:
-    """Render EBT coverage breakdown."""
-    price = product.get("avg_price", 0)
-
-    st.markdown("<p class='section-header'>EBT Coverage</p>", unsafe_allow_html=True)
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.metric("Price", f"${price:.2f}")
-
-    with col2:
-        if is_eligible:
-            st.metric("EBT Covers", f"${price:.2f}")
-        else:
-            st.metric("EBT Covers", "$0.00")
-
-    with col3:
-        if is_eligible:
-            st.metric("You Pay", "$0.00")
-        else:
-            st.metric("You Pay", f"${price:.2f}")
-
-    if is_eligible:
-        st.markdown(f"""
-        <div style="background: rgba(16, 163, 127, 0.1); padding: 12px 16px; border-radius: 8px; color: {COLORS['success']}; margin-top: 8px;">
-            Fully covered by SNAP/EBT benefits
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown(f"""
-        <div style="background: rgba(239, 68, 68, 0.1); padding: 12px 16px; border-radius: 8px; color: {COLORS['error']}; margin-top: 8px;">
-            Not covered - full price required
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("")
-
-
-def render_reasoning_section(result: Dict[str, Any]) -> None:
-    """Render reasoning in a clean format."""
+    # Reasoning
     reasoning = result.get("reasoning_chain", [])
-    key_factors = result.get("key_factors", [])
-
     if reasoning:
-        st.markdown("<p class='section-header'>Why this classification?</p>", unsafe_allow_html=True)
+        st.markdown("")
+        st.markdown("<p class='section-header'>Why?</p>", unsafe_allow_html=True)
         for i, step in enumerate(reasoning, 1):
             st.markdown(f"{i}. {step}")
-
-    if key_factors:
-        st.markdown("")
-        st.markdown("<p class='section-header'>Key factors</p>", unsafe_allow_html=True)
-        for factor in key_factors:
-            st.markdown(f"- {factor}")
-
-    # Data sources (collapsed)
-    data_sources = result.get("data_sources_used", [])
-    if data_sources:
-        with st.expander("Data sources"):
-            for source in data_sources:
-                st.caption(f"- {source}")
 
 
 def render_manual_entry() -> None:
@@ -466,25 +537,36 @@ def render_manual_entry() -> None:
             key="manual_category",
         )
 
-    if st.button("Check EBT Eligibility", type="primary", key="manual_check"):
-        if not product_name:
-            st.error("Please enter a product name")
-        else:
-            product_data = {
-                "product_id": f"MANUAL-{hash(product_name)}",
-                "product_name": product_name,
-                "category": category if category else None,
-            }
+    col_check, col_add = st.columns(2)
 
-            # Store as selected product for result display
-            st.session_state.selected_product = {
-                "name": product_name,
-                "category": category,
-            }
+    with col_check:
+        if st.button("Check", type="primary", key="manual_check"):
+            if not product_name:
+                st.error("Enter a product name")
+            else:
+                product_data = {
+                    "product_id": f"MANUAL-{hash(product_name)}",
+                    "product_name": product_name,
+                    "category": category if category else None,
+                }
 
-            with st.spinner("Checking eligibility..."):
-                result = classify_product(product_data)
+                st.session_state.selected_product = {
+                    "name": product_name,
+                    "category": category,
+                }
 
-            if result:
-                st.session_state.last_classification = result
+                with st.spinner("Checking..."):
+                    result = classify_product(product_data)
+
+                if result:
+                    st.session_state.last_classification = result
+                    st.rerun()
+
+    with col_add:
+        if st.button("Add to List", key="manual_add"):
+            if product_name:
+                add_to_saved_list({
+                    "name": product_name,
+                    "category": category,
+                })
                 st.rerun()
