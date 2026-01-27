@@ -311,7 +311,7 @@ def render_results(result: Dict[str, Any]) -> None:
 
         st.dataframe(
             styled_df,
-            use_container_width=True,
+            width="stretch",
             height=min(400, 56 + len(df_data) * 35),
             hide_index=True,
         )
@@ -325,7 +325,6 @@ def render_results(result: Dict[str, Any]) -> None:
             data=csv_buffer.getvalue(),
             file_name="ebt_classification_results.csv",
             mime="text/csv",
-            use_container_width=True,
         )
 
     # Show errors if any

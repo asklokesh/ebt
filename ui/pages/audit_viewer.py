@@ -138,7 +138,7 @@ def render_audit_page() -> None:
             # Display table
             st.dataframe(
                 df,
-                use_container_width=True,
+                width="stretch",
                 column_config={
                     "Audit ID": st.column_config.TextColumn(width="small"),
                 },
