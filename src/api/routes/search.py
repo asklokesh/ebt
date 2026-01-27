@@ -197,14 +197,31 @@ async def _get_llm_suggestions(
             )
             logger.info("using_ollama_cloud_for_search")
         else:
-            # Use local Ollama
-            from langchain_ollama import ChatOllama
+            # Use local Ollama - try to import langchain_ollama
+            try:
+                from langchain_ollama import ChatOllama
 
-            llm = ChatOllama(
-                model=settings.ollama_model,
-                base_url=settings.ollama_base_url,
-                temperature=0.3,
-            )
+                llm = ChatOllama(
+                    model=settings.ollama_model,
+                    base_url=settings.ollama_base_url,
+                    temperature=0.3,
+                )
+            except ImportError:
+                # langchain-ollama not available (e.g., on Streamlit Cloud)
+                # Fall back to OpenAI-compatible API if cloud is configured
+                if settings.ollama_cloud_enabled and settings.ollama_cloud_api_key:
+                    from langchain_openai import ChatOpenAI
+
+                    llm = ChatOpenAI(
+                        model=settings.ollama_model,
+                        api_key=settings.ollama_cloud_api_key,
+                        base_url=settings.ollama_cloud_base_url,
+                        temperature=0.3,
+                    )
+                    logger.info("fallback_to_ollama_cloud")
+                else:
+                    logger.warning("langchain_ollama_not_available")
+                    return []
 
         prompt = f"""You are a product database assistant. Given a search query, suggest real grocery/food products that match.
 

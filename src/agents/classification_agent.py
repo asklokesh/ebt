@@ -93,13 +93,28 @@ class ClassificationAgent:
 
         # Ollama fallback
         if settings.ollama_enabled:
-            from langchain_ollama import ChatOllama
+            try:
+                from langchain_ollama import ChatOllama
 
-            return ChatOllama(
-                model=settings.ollama_model,
-                base_url=settings.ollama_base_url,
-                temperature=0.1,
-            )
+                return ChatOllama(
+                    model=settings.ollama_model,
+                    base_url=settings.ollama_base_url,
+                    temperature=0.1,
+                )
+            except ImportError:
+                # langchain-ollama not available (e.g., Streamlit Cloud)
+                # Fall back to Ollama Cloud if configured
+                if settings.ollama_cloud_enabled and settings.ollama_cloud_api_key:
+                    from langchain_openai import ChatOpenAI
+
+                    return ChatOpenAI(
+                        model=settings.ollama_model,
+                        api_key=settings.ollama_cloud_api_key,
+                        base_url=settings.ollama_cloud_base_url,
+                        temperature=0.1,
+                    )
+                logger.warning("langchain_ollama_not_available_and_no_cloud_config")
+                return None
 
         return None
 
