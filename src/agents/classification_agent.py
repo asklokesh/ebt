@@ -83,13 +83,17 @@ class ClassificationAgent:
 
         # Legacy Gemini support
         if settings.is_gemini_configured:
-            from langchain_google_genai import ChatGoogleGenerativeAI
+            try:
+                from langchain_google_genai import ChatGoogleGenerativeAI
 
-            return ChatGoogleGenerativeAI(
-                model=settings.gemini_model,
-                google_api_key=settings.google_api_key,
-                temperature=0.1,
-            )
+                return ChatGoogleGenerativeAI(
+                    model=settings.gemini_model,
+                    google_api_key=settings.google_api_key,
+                    temperature=0.1,
+                )
+            except ImportError:
+                logger.warning("langchain_google_genai_not_available")
+                pass
 
         # Ollama fallback
         if settings.ollama_enabled:

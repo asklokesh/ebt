@@ -5,17 +5,23 @@ python-multipart==0.0.6
 pydantic==2.5.3
 pydantic-settings==2.1.0
 
-# LangChain and AI (compatible versions)
-langchain>=0.2.0
-langchain-core>=0.2.20
-langchain-openai>=0.1.0
-langchain-google-genai>=1.0.0
-langchain-community>=0.2.0
-langchain-ollama>=0.1.0  # Optional for local development
+# LangChain and AI - pinned compatible versions
+# Using 0.3.x series which is stable and compatible
+langchain==0.3.14
+langchain-core==0.3.29
+langchain-openai==0.3.0
+langchain-community==0.3.14
 
-# Vector store and embeddings
-chromadb==0.4.22
-sentence-transformers==2.2.2
+# Optional: langchain-ollama for local development only
+# Uncomment for local dev: langchain-ollama==0.3.0
+
+# Optional: langchain-google-genai for Gemini
+# Uncomment if using Gemini: langchain-google-genai==2.0.0
+
+# Vector store and embeddings (optional - RAG features)
+# These are heavy dependencies, uncomment for local dev
+# chromadb==0.4.22
+# sentence-transformers==2.2.2
 
 # Database
 aiosqlite==0.19.0
@@ -30,14 +36,17 @@ structlog==24.1.0
 tenacity==8.2.3
 
 # Streamlit UI
-streamlit==1.30.0
+streamlit>=1.30.0
 
-# Testing
-pytest==7.4.4
-pytest-asyncio==0.23.3
-pytest-cov==4.1.0
+# Data processing
+pandas>=2.0.0
 
-# Development
-black==23.12.1
-isort==5.13.2
-mypy==1.8.0
+# Testing (optional for cloud)
+# pytest==7.4.4
+# pytest-asyncio==0.23.3
+# pytest-cov==4.1.0
+
+# Development (optional for cloud)
+# black==23.12.1
+# isort==5.13.2
+# mypy==1.8.0
