@@ -5,10 +5,16 @@ import httpx
 import os
 import json
 import re
+import base64
 from typing import Optional, Dict, Any, List
 
 # API URL from environment or default
 API_URL = os.environ.get("API_URL", "http://localhost:8000")
+
+# Kroger API configuration (Certification environment)
+KROGER_TOKEN_URL = "https://api-ce.kroger.com/v1/connect/oauth2/token"
+KROGER_PRODUCT_URL = "https://api-ce.kroger.com/v1/products"
+KROGER_LOCATION_URL = "https://api-ce.kroger.com/v1/locations"
 
 # Check if we're running on Streamlit Cloud (no local API)
 IS_CLOUD = os.environ.get("STREAMLIT_SHARING_MODE") or not os.environ.get("API_URL")
@@ -156,6 +162,135 @@ def call_cloud_llm(prompt: str) -> str:
         return None
 
 
+def get_kroger_token() -> Optional[str]:
+    """Get Kroger API access token using client credentials."""
+    try:
+        client_id = st.secrets.get("KROGER_CLIENT_ID", "")
+        client_secret = st.secrets.get("KROGER_CLIENT_SECRET", "")
+
+        if not client_id or not client_secret:
+            return None
+
+        # Check if we have a cached token
+        if "kroger_token" in st.session_state:
+            token_data = st.session_state.kroger_token
+            # Simple expiry check (tokens last 30 min, refresh after 25)
+            import time
+            if token_data.get("expires_at", 0) > time.time():
+                return token_data.get("access_token")
+
+        # Get new token
+        credentials = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
+
+        response = httpx.post(
+            KROGER_TOKEN_URL,
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Authorization": f"Basic {credentials}"
+            },
+            data="grant_type=client_credentials&scope=product.compact",
+            timeout=10.0
+        )
+
+        if response.status_code == 200:
+            token_data = response.json()
+            import time
+            token_data["expires_at"] = time.time() + token_data.get("expires_in", 1800) - 300
+            st.session_state.kroger_token = token_data
+            return token_data.get("access_token")
+    except Exception as e:
+        pass
+    return None
+
+
+def get_kroger_location(token: str, zipcode: str = "90210") -> Optional[str]:
+    """Get a Kroger store location ID near the given zipcode."""
+    try:
+        # Check cache
+        cache_key = f"kroger_location_{zipcode}"
+        if cache_key in st.session_state:
+            return st.session_state[cache_key]
+
+        response = httpx.get(
+            KROGER_LOCATION_URL,
+            headers={"Authorization": f"Bearer {token}"},
+            params={"filter.zipCode.near": zipcode, "filter.limit": 1},
+            timeout=10.0
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            locations = data.get("data", [])
+            if locations:
+                location_id = locations[0].get("locationId")
+                st.session_state[cache_key] = location_id
+                return location_id
+    except Exception:
+        pass
+    return None
+
+
+def search_kroger_products(query: str, limit: int = 6) -> list:
+    """Search Kroger API for products with real prices."""
+    token = get_kroger_token()
+    if not token:
+        return []
+
+    try:
+        # Get a location for pricing
+        location_id = get_kroger_location(token)
+
+        params = {
+            "filter.term": query,
+            "filter.limit": limit,
+        }
+        if location_id:
+            params["filter.locationId"] = location_id
+
+        response = httpx.get(
+            KROGER_PRODUCT_URL,
+            headers={"Authorization": f"Bearer {token}"},
+            params=params,
+            timeout=10.0
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            products = data.get("data", [])
+
+            results = []
+            for p in products[:limit]:
+                # Extract price from items array
+                price = None
+                items = p.get("items", [])
+                if items:
+                    item = items[0]
+                    price_info = item.get("price", {})
+                    price = price_info.get("regular") or price_info.get("promo")
+
+                # Get brand and description
+                brand = p.get("brand", "")
+                description = p.get("description", "")
+                categories = p.get("categories", [])
+                category = categories[0] if categories else ""
+                upc = p.get("upc", "")
+
+                results.append({
+                    "name": description,
+                    "brand": brand,
+                    "category": category,
+                    "upc": upc,
+                    "avg_price": price,
+                    "data_source": "kroger",
+                })
+
+            return results
+    except Exception as e:
+        pass
+
+    return []
+
+
 def search_products_direct(query: str, limit: int = 6) -> list:
     """Search for products using LLM directly (for cloud deployment)."""
     prompt = f"""You are a product database assistant. Given a search query, suggest real grocery/food products that match.
@@ -253,15 +388,20 @@ Return ONLY valid JSON, no other text."""
 
 
 def search_products(query: str) -> list:
-    """Search for products - uses direct LLM on cloud, API locally."""
+    """Search for products - tries Kroger API first for real prices, falls back to LLM."""
     if len(query) < 2:
         return []
 
-    # Use direct LLM if on cloud or cloud mode is selected
+    # Try Kroger API first for real prices
+    kroger_results = search_kroger_products(query)
+    if kroger_results:
+        return kroger_results
+
+    # Fall back to LLM-generated products if Kroger fails
     if IS_CLOUD or st.session_state.get("llm_mode") == "cloud":
         return search_products_direct(query)
 
-    # Otherwise use API
+    # Otherwise use local API
     try:
         response = httpx.get(
             f"{API_URL}/search/products",
@@ -449,8 +589,9 @@ def render_product_card(product: Dict[str, Any], index: int = 0) -> None:
     brand = product.get("brand", "")
     category = product.get("category", "")
 
-    # Format price
+    # Format price with source indicator
     price_text = ""
+    data_source = product.get("data_source", "")
     if product.get("avg_price"):
         price_text = f"${product['avg_price']:.2f}"
 
@@ -471,7 +612,14 @@ def render_product_card(product: Dict[str, Any], index: int = 0) -> None:
 
     with col2:
         if price_text:
-            st.markdown(price_text)
+            if data_source == "kroger":
+                st.markdown(f"{price_text}")
+                st.caption("Kroger")
+            elif data_source == "llm":
+                st.markdown(f"~{price_text}")
+                st.caption("Est.")
+            else:
+                st.markdown(price_text)
 
     with col3:
         if st.button("Check", key=f"check_{index}", type="primary"):
