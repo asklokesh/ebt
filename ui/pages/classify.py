@@ -211,8 +211,8 @@ def render_search_view() -> None:
 
         if results:
             st.markdown("")
-            for product in results:
-                render_product_card(product)
+            for idx, product in enumerate(results):
+                render_product_card(product, idx)
         else:
             st.markdown("")
             st.info("No products found. Try a different search term.")
@@ -223,7 +223,7 @@ def render_search_view() -> None:
     render_manual_entry()
 
 
-def render_product_card(product: Dict[str, Any]) -> None:
+def render_product_card(product: Dict[str, Any], index: int = 0) -> None:
     """Render a clickable product card."""
     name = product.get("name", "Unknown Product")
     brand = product.get("brand", "")
@@ -255,10 +255,9 @@ def render_product_card(product: Dict[str, Any]) -> None:
             st.markdown(f"**{price_text}**")
 
     with col3:
-        # Use unique key combining name, brand, and index
-        unique_key = f"select_{hash(f'{name}_{brand}_{category}_{price_text}')}_{id(product)}"
-        if st.button("Check", key=unique_key):
-            st.session_state.selected_product = product
+        # Use index-based unique key for reliable button identification
+        if st.button("Check", key=f"check_product_{index}", type="primary"):
+            st.session_state.selected_product = dict(product)  # Copy to avoid reference issues
             st.session_state.last_classification = None
             st.rerun()
 
