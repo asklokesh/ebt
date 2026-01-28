@@ -32,25 +32,79 @@ COLORS = {
 
 
 def inject_styles():
-    """Inject custom CSS for clean design."""
+    """Inject custom CSS for luxury design."""
     st.markdown(f"""
     <style>
         /* Page background */
         .stApp {{
-            background-color: {COLORS['bg']};
+            background: linear-gradient(180deg, #FAFAF9 0%, #F5F5F4 100%);
+        }}
+
+        /* Hero search section */
+        .hero-search {{
+            text-align: center;
+            padding: 2rem 0 1rem 0;
+        }}
+        .hero-title {{
+            font-size: 2rem;
+            font-weight: 300;
+            color: #1A1A1A;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }}
+        .hero-subtitle {{
+            font-size: 1rem;
+            color: #6B7280;
+            margin-bottom: 1.5rem;
         }}
 
         /* Search input styling */
         .stTextInput > div > div > input {{
-            border-radius: 12px;
-            border: 1px solid #E5E5E5;
-            padding: 16px 20px;
+            border-radius: 24px;
+            border: 2px solid #E5E5E5;
+            padding: 16px 24px;
             font-size: 16px;
             background: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s ease;
         }}
         .stTextInput > div > div > input:focus {{
             border-color: {COLORS['accent']};
-            box-shadow: 0 0 0 2px rgba(212, 162, 124, 0.2);
+            box-shadow: 0 4px 12px -1px rgba(212, 162, 124, 0.25);
+        }}
+
+        /* Product card */
+        .product-card {{
+            background: white;
+            border-radius: 16px;
+            padding: 1.25rem;
+            margin: 0.75rem 0;
+            border: 1px solid #E5E5E5;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            transition: all 0.2s ease;
+        }}
+        .product-card:hover {{
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            border-color: {COLORS['accent']};
+        }}
+        .product-name {{
+            font-size: 1rem;
+            font-weight: 600;
+            color: #1A1A1A;
+            margin-bottom: 0.25rem;
+        }}
+        .product-meta {{
+            font-size: 0.875rem;
+            color: #6B7280;
+        }}
+        .product-price {{
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: {COLORS['accent']};
+        }}
+        .product-source {{
+            font-size: 0.75rem;
+            color: #9CA3AF;
         }}
 
         /* Result badges */
@@ -58,27 +112,62 @@ def inject_styles():
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 12px 24px;
-            border-radius: 8px;
+            padding: 16px 32px;
+            border-radius: 12px;
             font-weight: 600;
-            font-size: 18px;
+            font-size: 1.25rem;
         }}
         .result-eligible {{
-            background: rgba(16, 163, 127, 0.1);
-            color: {COLORS['success']};
+            background: linear-gradient(135deg, rgba(212, 162, 124, 0.15) 0%, rgba(212, 162, 124, 0.05) 100%);
+            color: {COLORS['accent']};
+            border: 1px solid rgba(212, 162, 124, 0.3);
         }}
         .result-ineligible {{
-            background: rgba(239, 68, 68, 0.1);
-            color: {COLORS['error']};
+            background: linear-gradient(135deg, rgba(107, 114, 128, 0.15) 0%, rgba(107, 114, 128, 0.05) 100%);
+            color: #6B7280;
+            border: 1px solid rgba(107, 114, 128, 0.3);
         }}
 
-        /* Saved list item */
-        .saved-item {{
+        /* Cart/Saved list */
+        .cart-container {{
             background: white;
-            border-radius: 8px;
-            padding: 12px 16px;
-            margin: 4px 0;
+            border-radius: 16px;
+            padding: 1.5rem;
             border: 1px solid #E5E5E5;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }}
+        .cart-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #F3F4F6;
+        }}
+        .cart-title {{
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #6B7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }}
+        .cart-count {{
+            background: {COLORS['accent']};
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }}
+        .cart-item {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #F9FAFB;
+        }}
+        .cart-item:last-child {{
+            border-bottom: none;
         }}
 
         /* Hide default streamlit elements */
@@ -87,19 +176,38 @@ def inject_styles():
 
         /* Button styling */
         .stButton > button {{
-            border-radius: 8px;
+            border-radius: 12px;
             font-weight: 500;
-            padding: 8px 16px;
+            padding: 10px 20px;
+            transition: all 0.2s ease;
+        }}
+        .stButton > button:hover {{
+            transform: translateY(-1px);
+        }}
+        .stButton > button[kind="primary"] {{
+            background: {COLORS['accent']};
+            border-color: {COLORS['accent']};
         }}
 
         /* Section headers */
         .section-header {{
-            font-size: 14px;
+            font-size: 0.75rem;
             font-weight: 600;
-            color: {COLORS['muted']};
+            color: #9CA3AF;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 12px;
+            letter-spacing: 0.1em;
+            margin-bottom: 1rem;
+        }}
+
+        /* Info tooltip */
+        .info-tip {{
+            background: #1A1A1A;
+            color: white;
+            padding: 1rem 1.25rem;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            margin: 1rem 0;
         }}
 
         /* List badge */
@@ -613,8 +721,6 @@ def render_classify_page() -> None:
         st.session_state.saved_list = []
     if "list_results" not in st.session_state:
         st.session_state.list_results = None
-    if "show_docs" not in st.session_state:
-        st.session_state.show_docs = True
 
     # Show list results if available (full width)
     if st.session_state.list_results:
@@ -626,53 +732,41 @@ def render_classify_page() -> None:
         render_result_view()
         return
 
-    # Main layout with optional docs panel
-    if st.session_state.show_docs:
-        col_main, col_docs = st.columns([3, 1])
-    else:
-        col_main = st.container()
-        col_docs = None
-
-    with col_main:
-        render_search_view()
-
-    if col_docs:
-        with col_docs:
-            # Docs toggle at top
-            if st.button("Hide Guide", key="hide_docs", use_container_width=True):
-                st.session_state.show_docs = False
-                st.rerun()
-            st.markdown("")
-            render_docs_panel()
-    else:
-        # Show button to restore docs in the search view
-        pass
+    # Main layout
+    render_search_view()
 
 
 def render_search_view() -> None:
     """Render the search interface with saved list."""
 
-    # Header with docs toggle
-    col_header, col_toggle = st.columns([4, 1])
-    with col_header:
-        st.markdown("### Search Products")
-    with col_toggle:
-        if not st.session_state.get("show_docs", True):
-            if st.button("Show Guide", key="show_docs_btn"):
-                st.session_state.show_docs = True
-                st.rerun()
+    # Hero section
+    st.markdown("""
+    <div class="hero-search">
+        <div class="hero-title">Check EBT Eligibility</div>
+        <div class="hero-subtitle">Search any product to verify SNAP eligibility instantly</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # Search and saved list side by side
-    col_search, col_list = st.columns([3, 2])
+    # Main content - search on left, cart on right
+    col_search, col_spacer, col_cart = st.columns([5, 0.5, 2])
 
     with col_search:
         # Search box
         query = st.text_input(
             "Search products",
-            placeholder="Search by product name (e.g., milk, chips, energy drink)...",
+            placeholder="Search for milk, bread, snacks...",
             label_visibility="collapsed",
             key="search_query",
         )
+
+        # Quick info tip
+        if not query:
+            st.markdown("""
+            <div class="info-tip">
+                <strong>Quick Guide:</strong> Food for home consumption is eligible.
+                Alcohol, tobacco, vitamins, and hot prepared foods are not.
+            </div>
+            """, unsafe_allow_html=True)
 
         # Search results
         if query and len(query) >= 2:
@@ -685,11 +779,12 @@ def render_search_view() -> None:
             else:
                 st.info("No products found. Try a different search term.")
 
-        # Manual entry (compact)
-        with st.expander("Enter product manually"):
-            render_manual_entry()
+            # Manual entry as small link
+            st.markdown("")
+            with st.expander("Can't find your product? Enter manually"):
+                render_manual_entry()
 
-    with col_list:
+    with col_cart:
         render_saved_list()
 
 
@@ -700,39 +795,46 @@ def render_product_card(product: Dict[str, Any], index: int = 0) -> None:
     category = product.get("category", "")
 
     # Format price with source indicator
-    price_text = ""
+    price = product.get("avg_price")
     data_source = product.get("data_source", "")
-    if product.get("avg_price"):
-        price_text = f"${product['avg_price']:.2f}"
+
+    if price:
+        if data_source == "Est.":
+            price_html = f"<span class='product-price'>~${price:.2f}</span><br><span class='product-source'>Estimated</span>"
+        elif data_source:
+            price_html = f"<span class='product-price'>${price:.2f}</span><br><span class='product-source'>{data_source}</span>"
+        else:
+            price_html = f"<span class='product-price'>${price:.2f}</span>"
+    else:
+        price_html = "<span class='product-source'>-</span>"
 
     # Check if already in saved list
     saved_names = [p.get("name") for p in st.session_state.get("saved_list", [])]
     is_saved = name in saved_names
 
-    # Card layout
-    col1, col2, col3, col4 = st.columns([2.5, 1, 0.8, 0.8])
+    # Card with HTML styling
+    brand_text = f" <span style='color: #9CA3AF;'>by {brand}</span>" if brand else ""
+    category_text = f"<span class='product-meta'>{category}</span>" if category else ""
 
-    with col1:
-        display_name = f"**{name}**"
-        if brand:
-            display_name += f" - {brand}"
-        st.markdown(display_name)
-        if category:
-            st.caption(category)
+    st.markdown(f"""
+    <div class="product-card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div style="flex: 1;">
+                <div class="product-name">{name}{brand_text}</div>
+                {category_text}
+            </div>
+            <div style="text-align: right; min-width: 80px;">
+                {price_html}
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    with col2:
-        if price_text:
-            if data_source == "Est.":
-                st.markdown(f"~{price_text}")
-                st.caption("Est.")
-            elif data_source:
-                st.markdown(f"{price_text}")
-                st.caption(data_source)
-            else:
-                st.markdown(price_text)
+    # Buttons below card
+    col_check, col_add, col_space = st.columns([1, 1, 3])
 
-    with col3:
-        if st.button("Check", key=f"check_{index}", type="primary"):
+    with col_check:
+        if st.button("Check Eligibility", key=f"check_{index}", type="primary", use_container_width=True):
             product_data = {
                 "product_id": product.get("upc") or f"SEARCH-{hash(name)}",
                 "product_name": name,
@@ -750,56 +852,59 @@ def render_product_card(product: Dict[str, Any], index: int = 0) -> None:
                 add_to_history(product, result)
                 st.rerun()
 
-    with col4:
+    with col_add:
         if is_saved:
-            st.button("Added", key=f"added_{index}", disabled=True)
+            st.button("In Cart", key=f"added_{index}", disabled=True, use_container_width=True)
         else:
-            if st.button("Add", key=f"add_{index}"):
+            if st.button("Add to Cart", key=f"add_{index}", use_container_width=True):
                 add_to_saved_list(product)
                 st.rerun()
 
 
 def render_saved_list() -> None:
-    """Render the saved list panel."""
+    """Render the saved list as a cart panel."""
     saved_list = st.session_state.get("saved_list", [])
     count = len(saved_list)
 
-    st.markdown(f"### Saved List <span class='list-count'>{count}</span>", unsafe_allow_html=True)
+    # Cart container
+    st.markdown(f"""
+    <div class="cart-container">
+        <div class="cart-header">
+            <span class="cart-title">Your Cart</span>
+            <span class="cart-count">{count}</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     if not saved_list:
-        st.caption("Add products from search results to check multiple items at once.")
+        st.caption("Add products to check multiple items at once")
         return
 
     # List items
     for idx, product in enumerate(saved_list):
+        name = product.get("name", "Unknown")
+        price = product.get("avg_price")
+        price_text = f"${price:.2f}" if price else ""
+
         col1, col2 = st.columns([4, 1])
-
         with col1:
-            name = product.get("name", "Unknown")
-            price = product.get("avg_price")
-            if price:
-                st.markdown(f"**{name}** - ${price:.2f}")
-            else:
-                st.markdown(f"**{name}**")
-
+            st.markdown(f"**{name}**")
+            if price_text:
+                st.caption(price_text)
         with col2:
-            if st.button("X", key=f"remove_{idx}"):
+            if st.button("x", key=f"remove_{idx}", help="Remove"):
                 remove_from_saved_list(idx)
                 st.rerun()
 
-    st.markdown("")
+    st.markdown("---")
 
-    # Action buttons
-    col_check, col_clear = st.columns(2)
+    # Action button
+    if st.button("Check All Items", type="primary", use_container_width=True):
+        check_all_saved_products()
 
-    with col_check:
-        if st.button("Check All", type="primary", use_container_width=True):
-            check_all_saved_products()
-
-    with col_clear:
-        if st.button("Clear All", use_container_width=True):
-            st.session_state.saved_list = []
-            st.rerun()
+    if st.button("Clear Cart", use_container_width=True):
+        st.session_state.saved_list = []
+        st.rerun()
 
 
 def check_all_saved_products() -> None:
