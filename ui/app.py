@@ -235,12 +235,70 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Banner with team name and app description
+st.markdown("""
+<div style="
+    background: linear-gradient(135deg, #1A1A1A 0%, #2D2D2D 100%);
+    border-radius: 16px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+">
+    <div>
+        <div style="
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #D4A27C;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        ">Team Classify</div>
+        <div style="
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #FFFFFF;
+            margin-bottom: 0.25rem;
+        ">EBT Eligibility Checker</div>
+        <div style="
+            font-size: 0.875rem;
+            color: #9CA3AF;
+        ">AI-powered SNAP classification with real-time pricing from Kroger, Walmart, Target & more</div>
+    </div>
+    <div style="
+        display: flex;
+        gap: 0.75rem;
+    ">
+        <div style="
+            background: rgba(212, 162, 124, 0.15);
+            border: 1px solid rgba(212, 162, 124, 0.3);
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            text-align: center;
+        ">
+            <div style="font-size: 0.625rem; color: #9CA3AF; text-transform: uppercase;">Response</div>
+            <div style="font-size: 1rem; font-weight: 600; color: #D4A27C;">&lt;500ms</div>
+        </div>
+        <div style="
+            background: rgba(212, 162, 124, 0.15);
+            border: 1px solid rgba(212, 162, 124, 0.3);
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            text-align: center;
+        ">
+            <div style="font-size: 0.625rem; color: #9CA3AF; text-transform: uppercase;">Sources</div>
+            <div style="font-size: 1rem; font-weight: 600; color: #D4A27C;">5+ Stores</div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
 # App header
 col_title, col_settings = st.columns([4, 1])
 
 with col_title:
-    st.title("EBT Eligibility Checker")
-    st.caption("SNAP/EBT Product Classification")
+    st.markdown("")  # Spacing only - title is in banner
 
 with col_settings:
     st.markdown("")
@@ -329,3 +387,41 @@ with tab2:
 with tab3:
     from ui.pages.audit_viewer import render_audit_page
     render_audit_page()
+
+# Footer with HTC logo
+import base64
+from pathlib import Path
+
+# Load and encode the HTC logo
+logo_path = Path(__file__).parent / "htc_logo.webp"
+if logo_path.exists():
+    with open(logo_path, "rb") as f:
+        logo_base64 = base64.b64encode(f.read()).decode()
+
+    st.markdown("""
+    <div style="
+        margin-top: 3rem;
+        padding: 1.5rem 0;
+        border-top: 1px solid #E5E5E3;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 1rem;
+    ">
+        <span style="color: #9CA3AF; font-size: 0.875rem;">Powered by</span>
+        <img src="data:image/webp;base64,{}" style="height: 32px; opacity: 0.8;" alt="HTC">
+    </div>
+    """.format(logo_base64), unsafe_allow_html=True)
+else:
+    st.markdown("""
+    <div style="
+        margin-top: 3rem;
+        padding: 1.5rem 0;
+        border-top: 1px solid #E5E5E3;
+        text-align: center;
+        color: #9CA3AF;
+        font-size: 0.875rem;
+    ">
+        Powered by HTC
+    </div>
+    """, unsafe_allow_html=True)
