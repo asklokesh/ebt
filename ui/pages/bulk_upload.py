@@ -8,8 +8,14 @@ import os
 import pandas as pd
 from typing import List, Dict, Any
 
-# Import classify function from classify page
-from pages.classify import classify_product, IS_CLOUD
+# Import functions from classify page
+from pages.classify import (
+    classify_product,
+    IS_CLOUD,
+    search_kroger_products,
+    search_price_tavily,
+    estimate_price_llm,
+)
 
 # API URL from environment or default
 API_URL = os.environ.get("API_URL", "http://localhost:8000")
@@ -176,12 +182,38 @@ def process_bulk_direct(products: List[Dict[str, Any]]) -> None:
         try:
             result = classify_product(product)
             if result:
+                # Look up price by searching for the product
+                price = None
+                price_source = ""
+                product_name = product.get("product_name", "")
+                brand = product.get("brand", "")
+
+                # Try Kroger first
+                kroger_results = search_kroger_products(product_name, limit=1)
+                if kroger_results and kroger_results[0].get("avg_price"):
+                    price = kroger_results[0]["avg_price"]
+                    price_source = kroger_results[0].get("data_source", "Kroger")
+                else:
+                    # Try Tavily
+                    tavily_result = search_price_tavily(product_name, brand)
+                    if tavily_result:
+                        price = tavily_result["price"]
+                        price_source = tavily_result["store"]
+                    else:
+                        # Fall back to LLM estimate
+                        llm_result = estimate_price_llm(product_name, brand, product.get("category", ""))
+                        if llm_result:
+                            price = llm_result["price"]
+                            price_source = "Est."
+
                 results.append({
                     "product_id": product.get("product_id"),
                     "product_name": product.get("product_name"),
                     "is_ebt_eligible": result.get("is_ebt_eligible", False),
                     "classification_category": result.get("category", ""),
                     "confidence_score": result.get("confidence_score", 0),
+                    "price": price,
+                    "price_source": price_source,
                 })
             else:
                 errors.append(f"Failed to classify: {product.get('product_name')}")
@@ -289,12 +321,25 @@ def render_results(result: Dict[str, Any]) -> None:
         df_data = []
         for r in results:
             is_eligible = r.get("is_ebt_eligible", False)
+            price = r.get("price")
+            price_source = r.get("price_source", "")
+
+            # Format price with source
+            if price:
+                if price_source == "Est.":
+                    price_str = f"~${price:.2f}"
+                else:
+                    price_str = f"${price:.2f}"
+                price_display = f"{price_str} ({price_source})" if price_source else price_str
+            else:
+                price_display = "-"
+
             df_data.append({
                 "Product ID": r.get("product_id", ""),
                 "Name": r.get("product_name", ""),
+                "Price": price_display,
                 "Status": "Eligible" if is_eligible else "Ineligible",
                 "Category": (r.get("classification_category") or "").replace("_", " ").title(),
-                "Confidence": f"{(r.get('confidence_score') or 0) * 100:.0f}%",
             })
 
         df = pd.DataFrame(df_data)
