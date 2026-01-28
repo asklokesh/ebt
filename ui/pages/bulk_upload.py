@@ -339,7 +339,7 @@ def render_results(result: Dict[str, Any]) -> None:
         # Download button
         st.markdown("")
         csv_buffer = io.StringIO()
-        display_df.to_csv(csv_buffer, index=False)
+        df.to_csv(csv_buffer, index=False)
         st.download_button(
             label="Download Results as CSV",
             data=csv_buffer.getvalue(),
