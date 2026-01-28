@@ -230,7 +230,64 @@ def get_kroger_location(token: str, zipcode: str = "90210") -> Optional[str]:
     return None
 
 
-def estimate_price_llm(product_name: str, brand: str, category: str) -> float:
+def search_price_tavily(product_name: str, brand: str) -> dict:
+    """Use Tavily API to search for real product prices from any store."""
+    try:
+        api_key = st.secrets.get("TAVILY_API_KEY", "")
+        if not api_key:
+            return None
+
+        search_query = f"{brand} {product_name} price grocery" if brand else f"{product_name} price grocery"
+
+        response = httpx.post(
+            "https://api.tavily.com/search",
+            json={
+                "api_key": api_key,
+                "query": search_query,
+                "search_depth": "basic",
+                "max_results": 3,
+            },
+            timeout=10.0
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            results = data.get("results", [])
+
+            # Try to extract price and store from results
+            for result in results:
+                content = result.get("content", "") + " " + result.get("title", "")
+                url = result.get("url", "").lower()
+
+                # Extract price pattern ($X.XX)
+                price_match = re.search(r'\$(\d+\.?\d*)', content)
+                if price_match:
+                    price = float(price_match.group(1))
+
+                    # Determine store from URL or content
+                    store = "Web"
+                    if "walmart" in url or "walmart" in content.lower():
+                        store = "Walmart"
+                    elif "target" in url or "target" in content.lower():
+                        store = "Target"
+                    elif "safeway" in url or "safeway" in content.lower():
+                        store = "Safeway"
+                    elif "costco" in url or "costco" in content.lower():
+                        store = "Costco"
+                    elif "amazon" in url or "amazon" in content.lower():
+                        store = "Amazon"
+                    elif "instacart" in url:
+                        store = "Instacart"
+                    elif "kroger" in url:
+                        store = "Kroger"
+
+                    return {"price": price, "store": store}
+    except Exception:
+        pass
+    return None
+
+
+def estimate_price_llm(product_name: str, brand: str, category: str) -> dict:
     """Use LLM to estimate a typical price for a product."""
     prompt = f"""What is the typical US retail price for this grocery product?
 Product: {product_name}
@@ -243,10 +300,9 @@ Return ONLY a number (the price in dollars), nothing else. Example: 4.99"""
         content = call_cloud_llm(prompt)
         if content:
             # Extract number from response
-            import re
             match = re.search(r'(\d+\.?\d*)', content)
             if match:
-                return float(match.group(1))
+                return {"price": float(match.group(1)), "store": "Est."}
     except Exception:
         pass
     return None
@@ -298,11 +354,19 @@ def search_kroger_products(query: str, limit: int = 6) -> list:
                 category = categories[0] if categories else ""
                 upc = p.get("upc", "")
 
-                # If no price from Kroger, estimate with LLM
+                # If no price from Kroger, try Tavily web search, then LLM estimate
                 if price is None:
-                    price = estimate_price_llm(description, brand, category)
-                    if price:
-                        data_source = "llm"  # Mark as estimated
+                    # Try Tavily first for real prices
+                    tavily_result = search_price_tavily(description, brand)
+                    if tavily_result:
+                        price = tavily_result["price"]
+                        data_source = tavily_result["store"]
+                    else:
+                        # Fall back to LLM estimate
+                        llm_result = estimate_price_llm(description, brand, category)
+                        if llm_result:
+                            price = llm_result["price"]
+                            data_source = llm_result["store"]
 
                 results.append({
                     "name": description,
@@ -641,12 +705,12 @@ def render_product_card(product: Dict[str, Any], index: int = 0) -> None:
 
     with col2:
         if price_text:
-            if data_source == "kroger":
-                st.markdown(f"{price_text}")
-                st.caption("Kroger")
-            elif data_source == "llm":
+            if data_source == "Est.":
                 st.markdown(f"~{price_text}")
                 st.caption("Est.")
+            elif data_source:
+                st.markdown(f"{price_text}")
+                st.caption(data_source)
             else:
                 st.markdown(price_text)
 
