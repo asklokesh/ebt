@@ -9,10 +9,19 @@ from datetime import datetime, timedelta
 # API URL from environment or default
 API_URL = os.environ.get("API_URL", "http://localhost:8000")
 
+# Check if we're running on Streamlit Cloud (no local API)
+IS_CLOUD = os.environ.get("STREAMLIT_SHARING_MODE") or not os.environ.get("API_URL")
+
 
 def render_audit_page() -> None:
     """Render the audit trail viewer page."""
-    st.title("Audit Trail")
+    st.title("Classification History")
+
+    # On cloud, use session-based history
+    if IS_CLOUD:
+        render_session_history()
+        return
+
     st.markdown("View and search classification history.")
 
     # Filters
@@ -211,3 +220,61 @@ def render_audit_page() -> None:
 
     except Exception:
         pass  # Stats are optional
+
+
+def render_session_history() -> None:
+    """Render session-based history for cloud deployment."""
+    st.caption("Classification history for this session")
+
+    # Get history from session state
+    history = st.session_state.get("classification_history", [])
+
+    if not history:
+        st.info("No classifications yet. Search for products and check their eligibility to build history.")
+        return
+
+    # Stats
+    total = len(history)
+    eligible = sum(1 for h in history if h.get("is_eligible"))
+    ineligible = total - eligible
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total", total)
+    with col2:
+        st.metric("Eligible", eligible)
+    with col3:
+        st.metric("Ineligible", ineligible)
+
+    st.markdown("---")
+
+    # Build dataframe
+    df_data = []
+    for h in reversed(history):  # Most recent first
+        df_data.append({
+            "Time": h.get("timestamp", "")[:19] if h.get("timestamp") else "-",
+            "Product": h.get("product_name", "Unknown"),
+            "Status": "Eligible" if h.get("is_eligible") else "Ineligible",
+            "Category": (h.get("category") or "").replace("_", " ").title(),
+            "Price": f"${h.get('price'):.2f}" if h.get("price") else "-",
+            "Store": h.get("price_source", "-"),
+        })
+
+    df = pd.DataFrame(df_data)
+
+    # Style
+    def highlight_status(val):
+        if val == "Eligible":
+            return "background-color: #FAF7F5; color: #D4A27C; font-weight: 600;"
+        elif val == "Ineligible":
+            return "background-color: #F5F5F4; color: #6B7280; font-weight: 600;"
+        return ""
+
+    styled_df = df.style.map(highlight_status, subset=["Status"])
+
+    st.dataframe(styled_df, use_container_width=True, hide_index=True)
+
+    # Clear button
+    if st.button("Clear History"):
+        st.session_state.classification_history = []
+        st.rerun()

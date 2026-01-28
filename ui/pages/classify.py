@@ -541,6 +541,23 @@ def add_to_saved_list(product: Dict[str, Any]) -> None:
         st.session_state.saved_list.append(dict(product))
 
 
+def add_to_history(product: Dict[str, Any], result: Dict[str, Any]) -> None:
+    """Add a classification to session history."""
+    if "classification_history" not in st.session_state:
+        st.session_state.classification_history = []
+
+    from datetime import datetime
+    st.session_state.classification_history.append({
+        "timestamp": datetime.now().isoformat(),
+        "product_name": product.get("name") or product.get("product_name", "Unknown"),
+        "is_eligible": result.get("is_ebt_eligible", False),
+        "category": result.get("category", ""),
+        "confidence": result.get("confidence_score", 0),
+        "price": product.get("avg_price"),
+        "price_source": product.get("data_source", ""),
+    })
+
+
 def remove_from_saved_list(index: int) -> None:
     """Remove a product from the saved list by index."""
     if "saved_list" in st.session_state and 0 <= index < len(st.session_state.saved_list):
@@ -730,6 +747,7 @@ def render_product_card(product: Dict[str, Any], index: int = 0) -> None:
             if result:
                 st.session_state.selected_product = dict(product)
                 st.session_state.last_classification = result
+                add_to_history(product, result)
                 st.rerun()
 
     with col4:
@@ -1012,6 +1030,7 @@ def render_manual_entry() -> None:
 
                 if result:
                     st.session_state.last_classification = result
+                    add_to_history(st.session_state.selected_product, result)
                     st.rerun()
 
     with col_add:
