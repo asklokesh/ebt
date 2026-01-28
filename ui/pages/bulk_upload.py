@@ -315,55 +315,24 @@ def render_results(result: Dict[str, Any]) -> None:
                 "Product ID": r.get("product_id", ""),
                 "Name": r.get("product_name", ""),
                 "Status": "Eligible" if is_eligible else "Ineligible",
-                "Category": r.get("classification_category", "").replace("_", " ").title(),
-                "Confidence": f"{r.get('confidence_score', 0) * 100:.0f}%",
-                "_eligible": is_eligible,  # Hidden column for styling
+                "Category": (r.get("classification_category") or "").replace("_", " ").title(),
+                "Confidence": f"{(r.get('confidence_score') or 0) * 100:.0f}%",
             })
 
         df = pd.DataFrame(df_data)
 
-        # Apply row styling based on eligibility
-        def style_row(row):
-            if row["_eligible"]:
-                return ["background-color: #ECFDF5"] * len(row)
-            else:
-                return ["background-color: #FEF2F2"] * len(row)
-
-        # Apply badge styling to Status column
-        def style_status(val):
+        # Simple color coding for status
+        def highlight_status(val):
             if val == "Eligible":
-                return "background-color: #10A37F; color: white; font-weight: 600; border-radius: 9999px; padding: 2px 8px;"
+                return "background-color: #ECFDF5; color: #10A37F; font-weight: 600;"
             else:
-                return "background-color: #EF4444; color: white; font-weight: 600; border-radius: 9999px; padding: 2px 8px;"
+                return "background-color: #FEF2F2; color: #EF4444; font-weight: 600;"
 
-        # Style confidence based on value
-        def style_confidence(val):
-            try:
-                pct = int(val.replace("%", ""))
-                if pct >= 90:
-                    return "color: #10A37F; font-weight: 600;"
-                elif pct >= 70:
-                    return "color: #F59E0B; font-weight: 600;"
-                else:
-                    return "color: #EF4444; font-weight: 600;"
-            except (ValueError, AttributeError):
-                return ""
-
-        # Display columns (hide _eligible)
-        display_df = df[["Product ID", "Name", "Status", "Category", "Confidence"]]
-
-        styled_df = display_df.style.apply(
-            lambda row: style_row(df.loc[row.name]), axis=1
-        ).map(
-            style_status, subset=["Status"]
-        ).map(
-            style_confidence, subset=["Confidence"]
-        )
+        styled_df = df.style.map(highlight_status, subset=["Status"])
 
         st.dataframe(
             styled_df,
-            width="stretch",
-            height=min(400, 56 + len(df_data) * 35),
+            use_container_width=True,
             hide_index=True,
         )
 
