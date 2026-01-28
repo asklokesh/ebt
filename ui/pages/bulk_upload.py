@@ -64,19 +64,19 @@ def render_bulk_page() -> None:
     st.title("Bulk Classification")
     st.caption("Upload a CSV file to classify multiple products at once")
 
-    # Custom CSS for this page
+    # Custom CSS for this page - Anthropic theme
     st.markdown("""
     <style>
         /* File uploader styling */
         .stFileUploader > div > div {
-            border: 2px dashed #D4D4D4;
+            border: 2px dashed #E5E5E5;
             border-radius: 12px;
             padding: 2rem;
-            background-color: #FAFAFA;
+            background-color: #FAFAF9;
         }
         .stFileUploader > div > div:hover {
-            border-color: #10A37F;
-            background-color: #F9FDFB;
+            border-color: #D4A27C;
+            background-color: #FAF7F5;
         }
 
         /* Stats card styling */
@@ -90,35 +90,13 @@ def render_bulk_page() -> None:
         .stat-value {
             font-size: 2rem;
             font-weight: 600;
-            color: #171717;
+            color: #1A1A1A;
             line-height: 1;
         }
         .stat-label {
             font-size: 0.875rem;
-            color: #737373;
+            color: #6B7280;
             margin-top: 0.5rem;
-        }
-
-        /* Eligible badge */
-        .badge-eligible {
-            display: inline-block;
-            background-color: #10A37F;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
-        /* Ineligible badge */
-        .badge-ineligible {
-            display: inline-block;
-            background-color: #EF4444;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -280,7 +258,7 @@ def render_results(result: Dict[str, Any]) -> None:
     with col2:
         st.markdown(f"""
         <div class="stat-card">
-            <div class="stat-value" style="color: #10A37F;">{eligible_count}</div>
+            <div class="stat-value" style="color: #D4A27C;">{eligible_count}</div>
             <div class="stat-label">Eligible</div>
         </div>
         """, unsafe_allow_html=True)
@@ -288,7 +266,7 @@ def render_results(result: Dict[str, Any]) -> None:
     with col3:
         st.markdown(f"""
         <div class="stat-card">
-            <div class="stat-value" style="color: #EF4444;">{ineligible_count}</div>
+            <div class="stat-value" style="color: #6B7280;">{ineligible_count}</div>
             <div class="stat-label">Ineligible</div>
         </div>
         """, unsafe_allow_html=True)
@@ -297,7 +275,7 @@ def render_results(result: Dict[str, Any]) -> None:
         success_rate = (successful / total * 100) if total > 0 else 0
         st.markdown(f"""
         <div class="stat-card">
-            <div class="stat-value">{success_rate:.0f}%</div>
+            <div class="stat-value" style="color: #D4A27C;">{success_rate:.0f}%</div>
             <div class="stat-label">Success Rate</div>
         </div>
         """, unsafe_allow_html=True)
@@ -321,12 +299,12 @@ def render_results(result: Dict[str, Any]) -> None:
 
         df = pd.DataFrame(df_data)
 
-        # Simple color coding for status
+        # Anthropic-style color coding for status
         def highlight_status(val):
             if val == "Eligible":
-                return "background-color: #ECFDF5; color: #10A37F; font-weight: 600;"
+                return "background-color: #FAF7F5; color: #D4A27C; font-weight: 600;"
             else:
-                return "background-color: #FEF2F2; color: #EF4444; font-weight: 600;"
+                return "background-color: #F5F5F4; color: #6B7280; font-weight: 600;"
 
         styled_df = df.style.map(highlight_status, subset=["Status"])
 
