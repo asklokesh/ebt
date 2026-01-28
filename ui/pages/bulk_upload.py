@@ -8,6 +8,8 @@ import os
 import pandas as pd
 from typing import List, Dict, Any
 
+# Import classify function from classify page
+from pages.classify import classify_product, IS_CLOUD
 
 # API URL from environment or default
 API_URL = os.environ.get("API_URL", "http://localhost:8000")
@@ -173,6 +175,55 @@ SKU-004,Centrum Vitamin,Health,supplement_facts"""
 
 def process_bulk_classification(products: List[Dict[str, Any]]) -> None:
     """Process bulk classification and display results."""
+    # Use direct classification on cloud, API locally
+    if IS_CLOUD or st.session_state.get("llm_mode") == "cloud":
+        process_bulk_direct(products)
+    else:
+        process_bulk_api(products)
+
+
+def process_bulk_direct(products: List[Dict[str, Any]]) -> None:
+    """Process bulk classification using direct LLM calls."""
+    results = []
+    errors = []
+
+    progress = st.progress(0, text="Classifying products...")
+
+    for idx, product in enumerate(products):
+        progress.progress(
+            (idx + 1) / len(products),
+            text=f"Classifying {product.get('product_name', 'product')}..."
+        )
+
+        try:
+            result = classify_product(product)
+            if result:
+                results.append({
+                    "product_id": product.get("product_id"),
+                    "product_name": product.get("product_name"),
+                    "is_ebt_eligible": result.get("is_ebt_eligible", False),
+                    "classification_category": result.get("category", ""),
+                    "confidence_score": result.get("confidence_score", 0),
+                })
+            else:
+                errors.append(f"Failed to classify: {product.get('product_name')}")
+        except Exception as e:
+            errors.append(f"Error classifying {product.get('product_name')}: {str(e)}")
+
+    progress.empty()
+
+    # Build result object matching API format
+    render_results({
+        "results": results,
+        "total_products": len(products),
+        "successful": len(results),
+        "failed": len(errors),
+        "errors": errors,
+    })
+
+
+def process_bulk_api(products: List[Dict[str, Any]]) -> None:
+    """Process bulk classification using local API."""
     with st.spinner(f"Classifying {len(products)} products..."):
         try:
             response = httpx.post(
