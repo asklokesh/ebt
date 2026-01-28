@@ -230,6 +230,28 @@ def get_kroger_location(token: str, zipcode: str = "90210") -> Optional[str]:
     return None
 
 
+def estimate_price_llm(product_name: str, brand: str, category: str) -> float:
+    """Use LLM to estimate a typical price for a product."""
+    prompt = f"""What is the typical US retail price for this grocery product?
+Product: {product_name}
+Brand: {brand or "Store brand"}
+Category: {category or "Grocery"}
+
+Return ONLY a number (the price in dollars), nothing else. Example: 4.99"""
+
+    try:
+        content = call_cloud_llm(prompt)
+        if content:
+            # Extract number from response
+            import re
+            match = re.search(r'(\d+\.?\d*)', content)
+            if match:
+                return float(match.group(1))
+    except Exception:
+        pass
+    return None
+
+
 def search_kroger_products(query: str, limit: int = 6) -> list:
     """Search Kroger API for products with real prices."""
     token = get_kroger_token()
@@ -262,6 +284,7 @@ def search_kroger_products(query: str, limit: int = 6) -> list:
             for p in products[:limit]:
                 # Extract price from items array
                 price = None
+                data_source = "kroger"
                 items = p.get("items", [])
                 if items:
                     item = items[0]
@@ -275,13 +298,19 @@ def search_kroger_products(query: str, limit: int = 6) -> list:
                 category = categories[0] if categories else ""
                 upc = p.get("upc", "")
 
+                # If no price from Kroger, estimate with LLM
+                if price is None:
+                    price = estimate_price_llm(description, brand, category)
+                    if price:
+                        data_source = "llm"  # Mark as estimated
+
                 results.append({
                     "name": description,
                     "brand": brand,
                     "category": category,
                     "upc": upc,
                     "avg_price": price,
-                    "data_source": "kroger",
+                    "data_source": data_source,
                 })
 
             return results
