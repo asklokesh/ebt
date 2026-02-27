@@ -387,7 +387,7 @@ def search_price_tavily(product_name: str, brand: str) -> dict:
                     elif "instacart" in url:
                         store = "Instacart"
                     elif "kroger" in url:
-                        store = "Kroger"
+                        store = "Grocery Store"
 
                     return {"price": price, "store": store}
     except Exception:
@@ -448,7 +448,7 @@ def search_kroger_products(query: str, limit: int = 6) -> list:
             for p in products[:limit]:
                 # Extract price from items array
                 price = None
-                data_source = "kroger"
+                data_source = "Grocery Store"
                 items = p.get("items", [])
                 if items:
                     item = items[0]
