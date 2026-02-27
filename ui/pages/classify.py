@@ -11,10 +11,10 @@ from typing import Optional, Dict, Any, List
 # API URL from environment or default
 API_URL = os.environ.get("API_URL", "http://localhost:8000")
 
-# Kroger API configuration (Certification environment)
-KROGER_TOKEN_URL = "https://api-ce.kroger.com/v1/connect/oauth2/token"
-KROGER_PRODUCT_URL = "https://api-ce.kroger.com/v1/products"
-KROGER_LOCATION_URL = "https://api-ce.kroger.com/v1/locations"
+# Grocery store API configuration (currently using Kroger as backend provider)
+GROCERY_TOKEN_URL = "https://api-ce.kroger.com/v1/connect/oauth2/token"
+GROCERY_PRODUCT_URL = "https://api-ce.kroger.com/v1/products"
+GROCERY_LOCATION_URL = "https://api-ce.kroger.com/v1/locations"
 
 # Check if we're running on Streamlit Cloud (no local API)
 IS_CLOUD = os.environ.get("STREAMLIT_SHARING_MODE") or not os.environ.get("API_URL")
@@ -270,18 +270,18 @@ def call_cloud_llm(prompt: str) -> str:
         return None
 
 
-def get_kroger_token() -> Optional[str]:
-    """Get Kroger API access token using client credentials."""
+def get_grocery_api_token() -> Optional[str]:
+    """Get grocery store API access token using client credentials."""
     try:
-        client_id = st.secrets.get("KROGER_CLIENT_ID", "")
-        client_secret = st.secrets.get("KROGER_CLIENT_SECRET", "")
+        client_id = st.secrets.get("GROCERY_API_CLIENT_ID") or st.secrets.get("KROGER_CLIENT_ID", "")
+        client_secret = st.secrets.get("GROCERY_API_CLIENT_SECRET") or st.secrets.get("KROGER_CLIENT_SECRET", "")
 
         if not client_id or not client_secret:
             return None
 
         # Check if we have a cached token
-        if "kroger_token" in st.session_state:
-            token_data = st.session_state.kroger_token
+        if "grocery_api_token" in st.session_state:
+            token_data = st.session_state.grocery_api_token
             # Simple expiry check (tokens last 30 min, refresh after 25)
             import time
             if token_data.get("expires_at", 0) > time.time():
@@ -291,7 +291,7 @@ def get_kroger_token() -> Optional[str]:
         credentials = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
 
         response = httpx.post(
-            KROGER_TOKEN_URL,
+            GROCERY_TOKEN_URL,
             headers={
                 "Content-Type": "application/x-www-form-urlencoded",
                 "Authorization": f"Basic {credentials}"
@@ -304,23 +304,23 @@ def get_kroger_token() -> Optional[str]:
             token_data = response.json()
             import time
             token_data["expires_at"] = time.time() + token_data.get("expires_in", 1800) - 300
-            st.session_state.kroger_token = token_data
+            st.session_state.grocery_api_token = token_data
             return token_data.get("access_token")
     except Exception as e:
         pass
     return None
 
 
-def get_kroger_location(token: str, zipcode: str = "90210") -> Optional[str]:
-    """Get a Kroger store location ID near the given zipcode."""
+def get_grocery_store_location(token: str, zipcode: str = "90210") -> Optional[str]:
+    """Get a grocery store location ID near the given zipcode."""
     try:
         # Check cache
-        cache_key = f"kroger_location_{zipcode}"
+        cache_key = f"grocery_location_{zipcode}"
         if cache_key in st.session_state:
             return st.session_state[cache_key]
 
         response = httpx.get(
-            KROGER_LOCATION_URL,
+            GROCERY_LOCATION_URL,
             headers={"Authorization": f"Bearer {token}"},
             params={"filter.zipCode.near": zipcode, "filter.limit": 1},
             timeout=10.0
@@ -388,6 +388,8 @@ def search_price_tavily(product_name: str, brand: str) -> dict:
                         store = "Instacart"
                     elif "kroger" in url:
                         store = "Grocery Store"
+                    elif "wholefoodsmarket" in url or "whole foods" in content.lower():
+                        store = "Grocery Store"
 
                     return {"price": price, "store": store}
     except Exception:
@@ -416,15 +418,15 @@ Return ONLY a number (the price in dollars), nothing else. Example: 4.99"""
     return None
 
 
-def search_kroger_products(query: str, limit: int = 6) -> list:
-    """Search Kroger API for products with real prices."""
-    token = get_kroger_token()
+def search_grocery_products(query: str, limit: int = 6) -> list:
+    """Search grocery store API for products with real prices."""
+    token = get_grocery_api_token()
     if not token:
         return []
 
     try:
         # Get a location for pricing
-        location_id = get_kroger_location(token)
+        location_id = get_grocery_store_location(token)
 
         params = {
             "filter.term": query,
@@ -434,7 +436,7 @@ def search_kroger_products(query: str, limit: int = 6) -> list:
             params["filter.locationId"] = location_id
 
         response = httpx.get(
-            KROGER_PRODUCT_URL,
+            GROCERY_PRODUCT_URL,
             headers={"Authorization": f"Bearer {token}"},
             params=params,
             timeout=10.0
@@ -462,7 +464,7 @@ def search_kroger_products(query: str, limit: int = 6) -> list:
                 category = categories[0] if categories else ""
                 upc = p.get("upc", "")
 
-                # If no price from Kroger, try Tavily web search, then LLM estimate
+                # If no price from grocery store API, try Tavily web search, then LLM estimate
                 if price is None:
                     # Try Tavily first for real prices
                     tavily_result = search_price_tavily(description, brand)
@@ -589,16 +591,16 @@ Return ONLY valid JSON, no other text."""
 
 
 def search_products(query: str) -> list:
-    """Search for products - tries Kroger API first for real prices, falls back to LLM."""
+    """Search for products - tries grocery store API first for real prices, falls back to LLM."""
     if len(query) < 2:
         return []
 
-    # Try Kroger API first for real prices
-    kroger_results = search_kroger_products(query)
-    if kroger_results:
-        return kroger_results
+    # Try grocery store API first for real prices
+    grocery_results = search_grocery_products(query)
+    if grocery_results:
+        return grocery_results
 
-    # Fall back to LLM-generated products if Kroger fails
+    # Fall back to LLM-generated products if grocery store API fails
     if IS_CLOUD or st.session_state.get("llm_mode") == "cloud":
         return search_products_direct(query)
 
