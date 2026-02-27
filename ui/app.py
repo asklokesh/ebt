@@ -264,7 +264,7 @@ st.markdown("""
         <div style="
             font-size: 0.875rem;
             color: #9CA3AF;
-        ">AI-powered SNAP classification with real-time pricing from Kroger, Walmart, Target & more</div>
+        ">AI-powered SNAP classification with real-time pricing from Walmart, Target & more</div>
     </div>
     <div style="
         display: flex;

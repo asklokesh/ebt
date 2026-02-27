@@ -192,7 +192,7 @@ def process_bulk_direct(products: List[Dict[str, Any]]) -> None:
                 kroger_results = search_kroger_products(product_name, limit=1)
                 if kroger_results and kroger_results[0].get("avg_price"):
                     price = kroger_results[0]["avg_price"]
-                    price_source = kroger_results[0].get("data_source", "Kroger")
+                    price_source = kroger_results[0].get("data_source", "Grocery Store")
                 else:
                     # Try Tavily
                     tavily_result = search_price_tavily(product_name, brand)
