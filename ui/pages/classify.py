@@ -802,9 +802,7 @@ def render_product_card(product: Dict[str, Any], index: int = 0) -> None:
 
     if price:
         if data_source == "Est.":
-            price_html = f"<span class='product-price'>~${price:.2f}</span><br><span class='product-source'>Estimated</span>"
-        elif data_source:
-            price_html = f"<span class='product-price'>${price:.2f}</span><br><span class='product-source'>{data_source}</span>"
+            price_html = f"<span class='product-price'>~${price:.2f}</span>"
         else:
             price_html = f"<span class='product-price'>${price:.2f}</span>"
     else:
