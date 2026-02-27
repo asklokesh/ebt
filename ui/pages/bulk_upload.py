@@ -12,7 +12,7 @@ from typing import List, Dict, Any
 from pages.classify import (
     classify_product,
     IS_CLOUD,
-    search_kroger_products,
+    search_grocery_products,
     search_price_tavily,
     estimate_price_llm,
 )
@@ -188,11 +188,11 @@ def process_bulk_direct(products: List[Dict[str, Any]]) -> None:
                 product_name = product.get("product_name", "")
                 brand = product.get("brand", "")
 
-                # Try Kroger first
-                kroger_results = search_kroger_products(product_name, limit=1)
-                if kroger_results and kroger_results[0].get("avg_price"):
-                    price = kroger_results[0]["avg_price"]
-                    price_source = kroger_results[0].get("data_source", "Grocery Store")
+                # Try grocery store API first
+                grocery_results = search_grocery_products(product_name, limit=1)
+                if grocery_results and grocery_results[0].get("avg_price"):
+                    price = grocery_results[0]["avg_price"]
+                    price_source = grocery_results[0].get("data_source", "Grocery Store")
                 else:
                     # Try Tavily
                     tavily_result = search_price_tavily(product_name, brand)
