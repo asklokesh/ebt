@@ -78,7 +78,10 @@ class Settings(BaseSettings):
         # Fall back to legacy Gemini config
         if self.google_api_key and len(self.google_api_key) > 0:
             return True
-        # Check Ollama
+        # Check Ollama Cloud
+        if self.ollama_cloud_enabled and self.ollama_cloud_api_key:
+            return True
+        # Check local Ollama
         if self.ollama_enabled:
             return True
         return False

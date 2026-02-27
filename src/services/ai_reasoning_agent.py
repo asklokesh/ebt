@@ -73,4 +73,4 @@ class AIReasoningAgent:
 
     def is_available(self) -> bool:
         """Check if AI reasoning is available."""
-        return settings.is_gemini_configured or settings.ollama_enabled
+        return settings.is_llm_configured
